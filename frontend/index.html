@@ -1,1 +1,156 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#111820" />
+    <title>F1 Constructor Shop</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="screen active" id="homeScreen" aria-label="Каталог">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Telegram Mini App</p>
+            <h1>F1 Constructor Shop</h1>
+          </div>
+          <button class="cart-button" id="cartOpenButton" type="button" aria-label="Открыть корзину">
+            <span class="cart-button__count" id="cartCount">0</span>
+            <span class="cart-button__icon"></span>
+          </button>
+        </header>
 
+        <label class="search">
+          <span class="search__icon"></span>
+          <input id="searchInput" type="search" placeholder="Поиск по товарам" autocomplete="off" />
+        </label>
+
+        <section class="account-card" id="accountCard">
+          <div class="account-card__photo" id="accountPhoto"></div>
+          <div>
+            <strong id="profileName">Гость</strong>
+            <small id="profileStatus">Откройте магазин внутри Telegram для авторизации</small>
+          </div>
+        </section>
+
+        <div class="tab-strip" id="categoryTabs" aria-label="Категории"></div>
+        <div class="category-banner" id="categoryBanner"></div>
+        <div class="product-grid" id="productList" aria-label="Товары"></div>
+      </section>
+
+      <section class="screen" id="productScreen" aria-label="Товар">
+        <button class="back-button" id="backToHome" type="button">Назад</button>
+        <article id="productDetail"></article>
+      </section>
+
+      <section class="screen" id="cartScreen" aria-label="Корзина">
+        <header class="page-header">
+          <button class="back-button" id="backFromCart" type="button">Назад</button>
+          <h2>Корзина</h2>
+        </header>
+        <div id="cartItems" class="cart-items"></div>
+        <div class="sticky-panel">
+          <div class="summary-row">
+            <span>Сумма заказа</span>
+            <strong id="cartTotal">0 ₽</strong>
+          </div>
+          <button class="primary-button" id="checkoutButton" type="button">Продолжить</button>
+        </div>
+      </section>
+
+      <section class="screen" id="checkoutScreen" aria-label="Оформление заказа">
+        <header class="page-header">
+          <button class="back-button" id="backFromCheckout" type="button">Назад</button>
+          <h2>Оформление заказа</h2>
+        </header>
+
+        <form id="checkoutForm" class="checkout-form">
+          <fieldset>
+            <legend>Получатель</legend>
+            <label>
+              <strong>ФИО</strong>
+              <input name="name" placeholder="Фамилия Имя Отчество" required />
+            </label>
+            <label>
+              <strong>Телефон</strong>
+              <input name="phone" placeholder="+7 999 999 99 99" required />
+            </label>
+            <label>
+              <strong>Электронная почта</strong>
+              <input name="email" type="email" placeholder="name@gmail.com" />
+            </label>
+            <label>
+              <strong>Пункт СДЭК или адрес доставки</strong>
+              <input name="address" placeholder="Город, улица, пункт выдачи" required />
+            </label>
+            <label>
+              <strong>Ник в Telegram</strong>
+              <input name="telegram" id="telegramInput" placeholder="@username" />
+            </label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Промокод</legend>
+            <input name="promo" placeholder="Введите промокод" />
+          </fieldset>
+
+          <section class="payment-card">
+            <h3>Оплата переводом</h3>
+            <p>После нажатия кнопки откроется QR-код. Заказ попадет в таблицу со статусом “ожидает подтверждения оплаты”. Модератор проверит перевод и подтвердит заказ.</p>
+          </section>
+
+          <div class="sticky-panel checkout-summary">
+            <div class="summary-row">
+              <span>Сумма заказа</span>
+              <strong id="checkoutSubtotal">0 ₽</strong>
+            </div>
+            <div class="summary-row">
+              <span>Итого</span>
+              <strong id="checkoutTotal">0 ₽</strong>
+            </div>
+            <button class="primary-button" type="submit">Перейти к оплате</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="screen" id="paymentScreen" aria-label="Оплата">
+        <header class="page-header">
+          <button class="back-button" id="backFromPayment" type="button">Назад</button>
+          <h2>Оплата заказа</h2>
+        </header>
+        <section class="qr-panel">
+          <img id="paymentQr" alt="QR-код для оплаты" />
+          <div>
+            <p class="qr-panel__label">Сумма к оплате</p>
+            <strong id="paymentAmount">0 ₽</strong>
+          </div>
+          <p>После оплаты нажмите кнопку ниже. Модератор увидит заказ в таблице и подтвердит его после проверки перевода.</p>
+          <button class="primary-button" id="paidButton" type="button">Я оплатил</button>
+        </section>
+      </section>
+
+      <section class="screen" id="successScreen" aria-label="Заказ отправлен">
+        <div class="success-card">
+          <div class="success-card__mark"></div>
+          <h2>Заказ отправлен модератору</h2>
+          <p id="successText">Статус заказа: ожидает подтверждения оплаты.</p>
+          <textarea id="orderText" readonly></textarea>
+          <button class="primary-button" id="copyOrderButton" type="button">Скопировать заявку</button>
+          <a class="secondary-button" href="admin.html">Открыть таблицу заказов</a>
+          <button class="secondary-button" id="startAgainButton" type="button">Вернуться в магазин</button>
+        </div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Навигация">
+      <button class="nav-button active" data-target="homeScreen" type="button">Каталог</button>
+      <button class="nav-button" data-target="cartScreen" type="button">Корзина</button>
+      <a class="nav-button" href="admin.html">Редактор</a>
+    </nav>
+
+    <script src="store.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
