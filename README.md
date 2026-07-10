@@ -1,52 +1,33 @@
 # F1 Constructor Shop
 
-Готовый прототип Telegram Mini App:
+Production-ready skeleton for a Telegram Mini App shop.
 
-- `index.html` — магазин для покупателя.
-- `admin.html` — редактор категорий, товаров, картинок, QR-кода и таблица заказов.
-- `store.js` — локальное хранилище каталога, настроек и заказов.
-- `app.js` — логика витрины.
-- `admin.js` — логика редактора.
+## Structure
 
-## Как редактировать товары
+- `frontend/` - Telegram Mini App storefront and standalone admin panel.
+- `backend/` - Express REST API, SQLite database, Telegram bot, uploads.
 
-1. Откройте `admin.html`.
-2. Добавьте или измените категории.
-3. В карточке товара выберите категорию.
-4. Загрузите картинку товара или вставьте ссылку.
-5. Включите галочку “Скидки недели”, чтобы товар появился в первой вкладке магазина.
+## Backend
 
-Изменения сохраняются в браузере через `localStorage`. Для боевой версии данные нужно хранить на сервере или в базе.
+```bash
+cd backend
+npm install
+copy .env.example .env
+npm start
+```
 
-## QR-оплата
+Required environment variables:
 
-В `admin.html` откройте блок “Оплата” и загрузите QR-код. После оформления покупатель увидит этот QR-код, нажмет “Я оплатил”, а заказ появится в таблице со статусом “Ожидает подтверждения оплаты”.
+- `BOT_TOKEN` - Telegram bot token.
+- `ADMIN_ID` - Telegram id allowed to open admin panel.
+- `JWT_SECRET` - long random string.
+- `WEBAPP_URL` - public HTTPS URL of `frontend/index.html`.
+- `ADMIN_CHAT_ID` - where new-order notifications are sent.
 
-Модератор меняет статус заказа в таблице вручную.
+## Deploy
 
-## Telegram-авторизация
+- Frontend: Vercel.
+- Backend: Railway.
+- Set `API_BASE_URL` in frontend hosting if backend is on another domain, or edit `frontend/config.js`.
 
-Внутри Telegram Mini App данные покупателя доступны через `Telegram.WebApp.initDataUnsafe`. Для боевой проверки подлинности нужно проверять `initData` на сервере с токеном бота.
-
-Не храните токен бота в `index.html`, `app.js` или любом другом клиентском файле. Если токен уже был отправлен в чат, лучше перевыпустить его в BotFather.
-
-## Тест в Telegram
-
-1. Разместите папку на HTTPS-хостинге.
-2. В BotFather откройте вашего бота.
-3. Настройте кнопку меню или Web App URL на ссылку вида `https://ваш-домен/index.html`.
-4. Откройте бота в Telegram и запустите Mini App.
-
-Локальный `file://`-адрес Telegram не откроет как Mini App. Нужен публичный HTTPS.
-
-## Перенос заказов в таблицу
-
-В текущем прототипе заказы сохраняются в локальную таблицу `admin.html` и скачиваются в CSV. Для автоматического переноса в Google Sheets или Excel Online нужен небольшой сервер:
-
-1. Принимать заказ из Mini App.
-2. Проверять Telegram `initData`.
-3. Записывать заказ в Google Sheets API или базу.
-4. Отправлять модератору уведомление в Telegram.
-5. После подтверждения оплаты менять статус заказа.
-
-Токен бота должен храниться только в переменной окружения сервера.
+No products or categories are hardcoded in frontend JavaScript. Catalog data is loaded from the backend API and stored in SQLite.
