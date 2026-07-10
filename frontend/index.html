@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0d0f14" />
+    <title>F1 Constructor Shop</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  </head>
+  <body>
+    <main class="mini-app">
+      <header class="shop-header">
+        <img id="logo" class="logo hidden" alt="Логотип" />
+        <div>
+          <p class="eyebrow">Telegram Mini App</p>
+          <h1 id="shopName">F1 Constructor Shop</h1>
+        </div>
+      </header>
+
+      <section class="hero" id="hero">
+        <img id="heroImage" class="hero__image hidden" alt="Баннер" />
+        <div class="hero__content">
+          <strong>Скидки недели</strong>
+          <span id="bannerText">Постеры, LEGO Formula 1, одежда и кастомные иллюстрации</span>
+        </div>
+      </section>
+
+      <label class="search">
+        <input id="searchInput" type="search" placeholder="Поиск по каталогу" />
+      </label>
+
+      <nav class="tabs" id="tabs"></nav>
+      <section class="grid" id="products"></section>
+    </main>
+
+    <aside class="cart-bar" id="cartBar">
+      <div>
+        <small id="cartCount">0 товаров</small>
+        <strong id="cartTotal">0 ₽</strong>
+      </div>
+      <button class="btn btn-primary" id="openCart">Корзина</button>
+    </aside>
+
+    <div class="overlay" id="productOverlay">
+      <article class="sheet">
+        <button class="close" data-close="productOverlay" type="button">Закрыть</button>
+        <img id="productImage" class="sheet-image" alt="Товар" />
+        <h2 id="productTitle"></h2>
+        <p id="productDescription"></p>
+        <div class="price-row">
+          <strong id="productPrice"></strong>
+          <s id="productOldPrice"></s>
+        </div>
+        <button class="btn btn-primary" id="addToCart">Добавить в корзину</button>
+      </article>
+    </div>
+
+    <div class="overlay" id="cartOverlay">
+      <article class="sheet">
+        <button class="close" data-close="cartOverlay" type="button">Закрыть</button>
+        <h2>Корзина</h2>
+        <div id="cartItems"></div>
+        <div class="summary">
+          <span>Итого</span>
+          <strong id="cartSheetTotal">0 ₽</strong>
+        </div>
+        <button class="btn btn-primary" id="checkout">Оформить заказ</button>
+      </article>
+    </div>
+
+    <div class="overlay" id="checkoutOverlay">
+      <form class="sheet" id="checkoutForm">
+        <button class="close" data-close="checkoutOverlay" type="button">Закрыть</button>
+        <h2>Оформление заказа</h2>
+        <label class="field">ФИО<input name="customer_name" required /></label>
+        <label class="field">Телефон<input name="phone" required /></label>
+        <label class="field">Адрес СДЭК или доставки<input name="address" required /></label>
+        <label class="field">Комментарий<textarea name="comment"></textarea></label>
+        <button class="btn btn-primary" type="submit">Перейти к оплате</button>
+      </form>
+    </div>
+
+    <div class="overlay" id="paymentOverlay">
+      <article class="sheet">
+        <button class="close" data-close="paymentOverlay" type="button">Закрыть</button>
+        <h2>Оплата</h2>
+        <p id="paymentText"></p>
+        <img id="qrImage" class="qr" alt="QR-код оплаты" />
+        <button class="btn btn-primary" id="paidButton">Я оплатил</button>
+      </article>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
