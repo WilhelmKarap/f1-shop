@@ -1,4 +1,4 @@
 window.F1_CONFIG = {
-  API_URL: window.API_BASE_URL || "http://localhost:8080",
+  API_URL: "https://shop-web-production-9d66.up.railway.app",
   BOT_USERNAME: "F1posters_bot"
 };
