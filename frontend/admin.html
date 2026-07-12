@@ -24,6 +24,7 @@
         <strong>F1 CMS</strong>
         <button class="nav active" data-page="dashboard">Главная</button>
         <button class="nav" data-page="categories">Категории</button>
+        <button class="nav" data-page="subcategories">Подкатегории</button>
         <button class="nav" data-page="products">Товары</button>
         <button class="nav" data-page="orders">Заказы</button>
         <button class="nav" data-page="weekly">Скидки недели</button>
@@ -51,9 +52,14 @@
           <div class="table-wrap"><table><thead><tr><th>Фото</th><th>Название</th><th>Порядок</th><th></th></tr></thead><tbody id="categoriesTable"></tbody></table></div>
         </section>
 
+        <section class="page hidden" id="page-subcategories">
+          <div class="toolbar"><button class="btn btn-primary" id="newSubcategory">Добавить подкатегорию</button></div>
+          <div class="table-wrap"><table><thead><tr><th>Фото</th><th>Название</th><th>Основная категория</th><th>Порядок</th><th></th></tr></thead><tbody id="subcategoriesTable"></tbody></table></div>
+        </section>
+
         <section class="page hidden" id="page-products">
           <div class="toolbar"><button class="btn btn-primary" id="newProduct">Добавить товар</button></div>
-          <div class="table-wrap"><table><thead><tr><th>Фото</th><th>Название</th><th>Категория</th><th>Цена</th><th>Статус</th><th></th></tr></thead><tbody id="productsTable"></tbody></table></div>
+          <div class="table-wrap"><table><thead><tr><th>Фото</th><th>Название</th><th>Категория</th><th>Подкатегория</th><th>Цена</th><th>Статус</th><th></th></tr></thead><tbody id="productsTable"></tbody></table></div>
         </section>
 
         <section class="page hidden" id="page-orders">
@@ -108,11 +114,23 @@
       <button class="btn btn-primary">Сохранить</button>
     </form></div>
 
+    <div class="overlay" id="subcategoryModal"><form class="sheet modal-form" id="subcategoryForm">
+      <button class="close" data-close="subcategoryModal" type="button">Закрыть</button>
+      <h2>Подкатегория</h2><input type="hidden" name="id" />
+      <label class="field">Основная категория<select name="category_id" required></select></label>
+      <label class="field">Название<input name="name" required /></label>
+      <label class="field">Описание<textarea name="description"></textarea></label>
+      <label class="field">Изображение<input type="file" data-upload="categories" data-target="image" /><input name="image" /></label>
+      <label class="field">Порядок<input name="sort_order" type="number" value="0" /></label>
+      <button class="btn btn-primary">Сохранить</button>
+    </form></div>
+
     <div class="overlay" id="productModal"><form class="sheet modal-form" id="productForm">
       <button class="close" data-close="productModal" type="button">Закрыть</button>
       <h2>Товар</h2><input type="hidden" name="id" />
       <label class="field">Название<input name="title" required /></label>
       <label class="field">Категория<select name="category_id"></select></label>
+      <label class="field">Подкатегория<select name="subcategory_id"><option value="">Без подкатегории</option></select></label>
       <label class="field">Описание<textarea name="description"></textarea></label>
       <label class="field">Цена<input name="price" type="number" required /></label>
       <label class="field">Старая цена<input name="old_price" type="number" /></label>
@@ -128,8 +146,11 @@
       <button class="close" data-close="orderModal" type="button">Закрыть</button>
       <h2>Заказ #<span id="orderId"></span></h2>
       <div id="orderDetails"></div>
+      <label class="field">Стоимость товаров<input name="items_price" type="number" min="0" step="1" required /></label>
+      <label class="field">Стоимость доставки<input name="delivery_price" type="number" min="0" step="1" required /></label>
+      <div class="order-total"><span>Итого</span><strong id="orderCalculatedTotal">0 ₽</strong></div>
       <label class="field">Статус<select name="status">
-        <option value="new">Новый</option><option value="awaiting_payment">Ожидает оплаты</option><option value="awaiting_confirmation">Ожидает подтверждения</option><option value="paid">Оплачен</option><option value="shipped">Отправлен</option><option value="completed">Завершен</option><option value="cancelled">Отменен</option>
+        <option value="new">Новый, нужен расчет</option><option value="awaiting_payment">Реквизиты отправляются</option><option value="awaiting_confirmation">Ожидает подтверждения оплаты</option><option value="paid">Оплачен</option><option value="shipped">Отправлен</option><option value="completed">Завершен</option><option value="cancelled">Отменен</option>
       </select></label>
       <label class="field">Трек-номер<input name="track_number" /></label>
       <button class="btn btn-primary">Сохранить</button>

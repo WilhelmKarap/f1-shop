@@ -34,9 +34,21 @@ CREATE TABLE IF NOT EXISTS categories (
   created_at TEXT DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS subcategories (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  description TEXT DEFAULT '',
+  image TEXT DEFAULT '',
+  sort_order INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT (datetime('now')),
+  UNIQUE(category_id, name)
+);
+
 CREATE TABLE IF NOT EXISTS products (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
+  subcategory_id INTEGER REFERENCES subcategories(id) ON DELETE SET NULL,
   title TEXT NOT NULL,
   description TEXT DEFAULT '',
   price REAL NOT NULL,
@@ -57,8 +69,11 @@ CREATE TABLE IF NOT EXISTS orders (
   username TEXT DEFAULT '',
   phone TEXT NOT NULL,
   address TEXT NOT NULL,
+  delivery_provider TEXT DEFAULT '',
   comment TEXT DEFAULT '',
   status TEXT NOT NULL DEFAULT 'new',
+  items_price REAL NOT NULL DEFAULT 0,
+  delivery_price REAL NOT NULL DEFAULT 0,
   total_price REAL NOT NULL DEFAULT 0,
   track_number TEXT DEFAULT '',
   created_at TEXT DEFAULT (datetime('now')),
@@ -81,10 +96,16 @@ CREATE TABLE IF NOT EXISTS settings (
 `);
 
   ensureColumn(instance, "products", "is_draft", "is_draft INTEGER DEFAULT 0");
+  ensureColumn(instance, "products", "subcategory_id", "subcategory_id INTEGER REFERENCES subcategories(id) ON DELETE SET NULL");
   ensureColumn(instance, "products", "updated_at", "updated_at TEXT DEFAULT (datetime('now'))");
+  ensureColumn(instance, "orders", "delivery_provider", "delivery_provider TEXT DEFAULT ''");
+  ensureColumn(instance, "orders", "items_price", "items_price REAL NOT NULL DEFAULT 0");
+  ensureColumn(instance, "orders", "delivery_price", "delivery_price REAL NOT NULL DEFAULT 0");
   ensureColumn(instance, "orders", "total_price", "total_price REAL NOT NULL DEFAULT 0");
   ensureColumn(instance, "orders", "track_number", "track_number TEXT DEFAULT ''");
   ensureColumn(instance, "orders", "updated_at", "updated_at TEXT DEFAULT (datetime('now'))");
+
+  instance.prepare("UPDATE orders SET items_price = total_price WHERE items_price = 0 AND total_price > 0").run();
 }
 
 function ensureColumn(instance, table, column, ddl) {

@@ -5,11 +5,12 @@ tg?.expand();
 
 let settings = {};
 let categories = [];
+let subcategories = [];
 let products = [];
 let currentCategory = "weekly";
+let currentSubcategory = "all";
 let currentProduct = null;
 let cart = [];
-let pendingOrderPayload = null;
 
 const $ = (selector) => document.querySelector(selector);
 const money = (value) => `${new Intl.NumberFormat("ru-RU").format(value || 0)} ₽`;
@@ -22,13 +23,15 @@ async function getJson(path, options = {}) {
 }
 
 async function init() {
-  [settings, categories, products] = await Promise.all([
+  [settings, categories, subcategories, products] = await Promise.all([
     getJson("/api/settings"),
     getJson("/api/categories"),
+    getJson("/api/subcategories"),
     getJson("/api/products"),
   ]);
   renderSettings();
   renderTabs();
+  renderSubtabs();
   renderProducts();
   renderCart();
 }
@@ -44,8 +47,6 @@ function renderSettings() {
     $("#heroImage").src = asset(settings.banner_image);
     $("#heroImage").classList.remove("hidden");
   }
-  $("#paymentText").textContent = settings.payment_text || "Оплатите заказ по QR-коду и нажмите кнопку подтверждения.";
-  if (settings.qr_image) $("#qrImage").src = asset(settings.qr_image);
 }
 
 function renderTabs() {
@@ -55,12 +56,23 @@ function renderTabs() {
   ].join("");
 }
 
+function renderSubtabs() {
+  const element = $("#subtabs");
+  const visible = subcategories.filter((subcategory) => String(subcategory.category_id) === String(currentCategory));
+  element.classList.toggle("hidden", currentCategory === "weekly" || visible.length === 0);
+  element.innerHTML = [
+    `<button class="tab ${currentSubcategory === "all" ? "active" : ""}" data-subcategory="all">Все</button>`,
+    ...visible.map((subcategory) => `<button class="tab ${String(subcategory.id) === String(currentSubcategory) ? "active" : ""}" data-subcategory="${subcategory.id}">${subcategory.name}</button>`),
+  ].join("");
+}
+
 function filteredProducts() {
   const query = $("#searchInput").value.trim().toLowerCase();
   return products.filter((p) => {
     const categoryOk = currentCategory === "weekly" ? p.is_weekly_discount : String(p.category_id) === String(currentCategory);
+    const subcategoryOk = currentCategory === "weekly" || currentSubcategory === "all" || String(p.subcategory_id) === String(currentSubcategory);
     const searchOk = !query || `${p.title} ${p.description}`.toLowerCase().includes(query);
-    return categoryOk && searchOk;
+    return categoryOk && subcategoryOk && searchOk;
   });
 }
 
@@ -129,7 +141,16 @@ $("#tabs").addEventListener("click", (e) => {
   const btn = e.target.closest("[data-category]");
   if (!btn) return;
   currentCategory = btn.dataset.category;
+  currentSubcategory = "all";
   renderTabs();
+  renderSubtabs();
+  renderProducts();
+});
+$("#subtabs").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-subcategory]");
+  if (!btn) return;
+  currentSubcategory = btn.dataset.subcategory;
+  renderSubtabs();
   renderProducts();
 });
 $("#products").addEventListener("click", (e) => {
@@ -155,28 +176,33 @@ document.addEventListener("click", (e) => {
 $("#checkoutForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const form = Object.fromEntries(new FormData(e.currentTarget).entries());
-  pendingOrderPayload = {
+  const payload = {
     ...form,
     initData: tg?.initData || "",
     telegram_user: telegramUser(),
     username: telegramUser().username || "",
     items: cart.map(({ product_id, title, price, quantity }) => ({ product_id, title, price, quantity })),
   };
-  closeOverlay("checkoutOverlay");
-  openOverlay("paymentOverlay");
-});
-
-$("#paidButton").addEventListener("click", async () => {
-  const order = await getJson("/api/orders", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(pendingOrderPayload),
-  });
-  cart = [];
-  renderCart();
-  closeOverlay("paymentOverlay");
-  tg?.showAlert?.(`Заказ #${order.id} отправлен модератору.`);
-  alert(`Заказ #${order.id} отправлен модератору.`);
+  const submit = e.currentTarget.querySelector("button[type=submit]");
+  submit.disabled = true;
+  try {
+    const order = await getJson("/api/orders", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    cart = [];
+    renderCart();
+    e.currentTarget.reset();
+    closeOverlay("checkoutOverlay");
+    closeOverlay("cartOverlay");
+    $("#orderSuccessText").textContent = `Заказ #${order.id} отправлен администратору. Скоро администратор рассчитает доставку и отправит реквизиты для оплаты: QR-код и номер карты.`;
+    openOverlay("orderSuccessOverlay");
+  } catch (error) {
+    tg?.showAlert ? tg.showAlert(error.message) : alert(error.message);
+  } finally {
+    submit.disabled = false;
+  }
 });
 
 init().catch((error) => {

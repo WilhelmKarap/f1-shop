@@ -17,7 +17,7 @@ const bot = new TelegramBot(token, { polling: false });
     menu_button: { type: "web_app", text: "МАГАЗИН", web_app: { url: webAppUrl } },
   });
   await bot.setMyShortDescription("Магазин товаров Formula 1: постеры, LEGO, одежда и кастомные иллюстрации.");
-  await bot.setMyDescription("Откройте магазин, выберите товары Formula 1, оплатите по QR-коду и дождитесь подтверждения модератора.");
+  await bot.setMyDescription("Откройте магазин, выберите товары Formula 1 и оформите заказ. Администратор рассчитает доставку и отправит реквизиты для оплаты.");
   console.log("Bot commands, menu button and descriptions were configured.");
 })().catch((error) => {
   console.error(error.message);

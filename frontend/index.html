@@ -31,6 +31,7 @@
       </label>
 
       <nav class="tabs" id="tabs"></nav>
+      <nav class="tabs subtabs hidden" id="subtabs"></nav>
       <section class="grid" id="products"></section>
     </main>
 
@@ -75,19 +76,25 @@
         <h2>Оформление заказа</h2>
         <label class="field">ФИО<input name="customer_name" required /></label>
         <label class="field">Телефон<input name="phone" required /></label>
-        <label class="field">Адрес СДЭК или доставки<input name="address" required /></label>
+        <label class="field">Пункт выдачи
+          <select name="delivery_provider" required>
+            <option value="">Выберите пункт выдачи</option>
+            <option value="ozon">Озон</option>
+            <option value="yandex_market">Яндекс Маркет</option>
+          </select>
+        </label>
+        <label class="field">Адрес ПВЗ Озон/Яндекс маркет<input name="address" required /></label>
         <label class="field">Комментарий<textarea name="comment"></textarea></label>
-        <button class="btn btn-primary" type="submit">Перейти к оплате</button>
+        <button class="btn btn-primary" type="submit">Оформить заказ</button>
       </form>
     </div>
 
-    <div class="overlay" id="paymentOverlay">
+    <div class="overlay" id="orderSuccessOverlay">
       <article class="sheet">
-        <button class="close" data-close="paymentOverlay" type="button">Закрыть</button>
-        <h2>Оплата</h2>
-        <p id="paymentText"></p>
-        <img id="qrImage" class="qr" alt="QR-код оплаты" />
-        <button class="btn btn-primary" id="paidButton">Я оплатил</button>
+        <button class="close" data-close="orderSuccessOverlay" type="button">Закрыть</button>
+        <h2>Заказ оформлен</h2>
+        <p id="orderSuccessText"></p>
+        <button class="btn btn-primary" data-close="orderSuccessOverlay" type="button">Понятно</button>
       </article>
     </div>
 

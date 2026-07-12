@@ -353,12 +353,66 @@ app.delete("/api/categories/:id", requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
+app.get("/api/subcategories", (req, res) => {
+  const params = [];
+  let sql = "SELECT * FROM subcategories";
+  if (req.query.category_id) {
+    sql += " WHERE category_id = ?";
+    params.push(req.query.category_id);
+  }
+  sql += " ORDER BY sort_order, id";
+  res.json(db.prepare(sql).all(...params));
+});
+
+app.post("/api/subcategories", requireAdmin, (req, res) => {
+  const { category_id, name, description = "", image = "", sort_order = 0 } = req.body;
+  if (!category_id || !name) return res.status(400).json({ error: "Категория и название обязательны" });
+  if (!db.prepare("SELECT id FROM categories WHERE id = ?").get(category_id)) {
+    return res.status(400).json({ error: "Основная категория не найдена" });
+  }
+  try {
+    const info = db.prepare(
+      "INSERT INTO subcategories (category_id, name, description, image, sort_order) VALUES (?, ?, ?, ?, ?)"
+    ).run(category_id, name, description, image, Number(sort_order) || 0);
+    res.json(db.prepare("SELECT * FROM subcategories WHERE id = ?").get(info.lastInsertRowid));
+  } catch (error) {
+    if (String(error.code).includes("SQLITE_CONSTRAINT")) return res.status(409).json({ error: "Такая подкатегория уже существует" });
+    throw error;
+  }
+});
+
+app.put("/api/subcategories/:id", requireAdmin, (req, res) => {
+  const existing = db.prepare("SELECT * FROM subcategories WHERE id = ?").get(req.params.id);
+  if (!existing) return res.status(404).json({ error: "Подкатегория не найдена" });
+  const next = { ...existing, ...req.body };
+  if (!next.name || !db.prepare("SELECT id FROM categories WHERE id = ?").get(next.category_id)) {
+    return res.status(400).json({ error: "Категория и название обязательны" });
+  }
+  try {
+    db.prepare("UPDATE subcategories SET category_id = ?, name = ?, description = ?, image = ?, sort_order = ? WHERE id = ?")
+      .run(next.category_id, next.name, next.description || "", next.image || "", Number(next.sort_order) || 0, req.params.id);
+    res.json(db.prepare("SELECT * FROM subcategories WHERE id = ?").get(req.params.id));
+  } catch (error) {
+    if (String(error.code).includes("SQLITE_CONSTRAINT")) return res.status(409).json({ error: "Такая подкатегория уже существует" });
+    throw error;
+  }
+});
+
+app.delete("/api/subcategories/:id", requireAdmin, (req, res) => {
+  db.prepare("DELETE FROM subcategories WHERE id = ?").run(req.params.id);
+  res.json({ ok: true });
+});
+
 function sendProducts(req, res) {
   const params = [];
   let sql = "SELECT * FROM products WHERE 1=1";
   if (req.query.category_id) {
     sql += " AND category_id = ?";
     params.push(req.query.category_id);
+  }
+  if (req.query.subcategory_id) {
+    sql += " AND subcategory_id = ?";
+    params.push(req.query.subcategory_id);
   }
   if (req.query.weekly === "1") sql += " AND is_weekly_discount = 1";
   if (req.query.admin !== "1") sql += " AND is_available = 1 AND is_draft = 0";
@@ -385,12 +439,18 @@ app.get("/api/products/:id", (req, res) => {
 app.post("/api/products", requireAdmin, (req, res) => {
   const p = req.body;
   if (!p.title || p.price == null) return res.status(400).json({ error: "Название и цена обязательны" });
+  const categoryId = p.category_id || null;
+  const subcategoryId = p.subcategory_id || null;
+  if (subcategoryId && !db.prepare("SELECT id FROM subcategories WHERE id = ? AND category_id = ?").get(subcategoryId, categoryId)) {
+    return res.status(400).json({ error: "Подкатегория не относится к выбранной категории" });
+  }
   const info = db.prepare(
     `INSERT INTO products
-     (category_id, title, description, price, old_price, image, is_weekly_discount, is_available, is_draft, sort_order)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+     (category_id, subcategory_id, title, description, price, old_price, image, is_weekly_discount, is_available, is_draft, sort_order)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   ).run(
-    p.category_id || null,
+    categoryId,
+    subcategoryId,
     p.title,
     p.description || "",
     Number(p.price),
@@ -408,12 +468,18 @@ app.put("/api/products/:id", requireAdmin, (req, res) => {
   const existing = db.prepare("SELECT * FROM products WHERE id = ?").get(req.params.id);
   if (!existing) return res.status(404).json({ error: "Товар не найден" });
   const p = { ...existing, ...req.body };
+  const categoryId = p.category_id || null;
+  const subcategoryId = p.subcategory_id || null;
+  if (subcategoryId && !db.prepare("SELECT id FROM subcategories WHERE id = ? AND category_id = ?").get(subcategoryId, categoryId)) {
+    return res.status(400).json({ error: "Подкатегория не относится к выбранной категории" });
+  }
   db.prepare(
-    `UPDATE products SET category_id = ?, title = ?, description = ?, price = ?, old_price = ?,
+    `UPDATE products SET category_id = ?, subcategory_id = ?, title = ?, description = ?, price = ?, old_price = ?,
      image = ?, is_weekly_discount = ?, is_available = ?, is_draft = ?, sort_order = ?, updated_at = datetime('now')
      WHERE id = ?`
   ).run(
-    p.category_id || null,
+    categoryId,
+    subcategoryId,
     p.title,
     p.description || "",
     Number(p.price),
@@ -434,29 +500,31 @@ app.delete("/api/products/:id", requireAdmin, (req, res) => {
 });
 
 app.post("/api/orders", (req, res) => {
-  const { initData = "", telegram_user = {}, customer_name, username = "", phone, address, comment = "", items = [] } = req.body;
+  const { initData = "", telegram_user = {}, customer_name, username = "", phone, delivery_provider, address, comment = "", items = [] } = req.body;
   if (process.env.BOT_TOKEN && initData && !checkWebAppInitData(initData, process.env.BOT_TOKEN)) {
     return res.status(403).json({ error: "Не удалось подтвердить Telegram Mini App" });
   }
-  if (!customer_name || !phone || !address || !items.length) {
+  if (!customer_name || !phone || !["ozon", "yandex_market"].includes(delivery_provider) || !address || !items.length) {
     return res.status(400).json({ error: "Заполните обязательные поля заказа" });
   }
   if (telegram_user.id) upsertUser(telegram_user, 0);
-  const normalized = items.map((item) => {
-    const product = db.prepare("SELECT * FROM products WHERE id = ?").get(item.product_id);
-    return {
+  const normalized = [];
+  for (const item of items) {
+    const product = db.prepare("SELECT * FROM products WHERE id = ? AND is_available = 1 AND is_draft = 0").get(item.product_id);
+    if (!product) return res.status(400).json({ error: "Один из товаров больше недоступен. Обновите корзину." });
+    normalized.push({
       product_id: item.product_id,
-      title: product?.title || item.title || "Товар",
-      quantity: Math.max(1, Number(item.quantity) || 1),
-      price: Number(product?.price ?? item.price ?? 0),
-    };
-  });
+      title: product.title,
+      quantity: Math.min(99, Math.max(1, Number(item.quantity) || 1)),
+      price: Number(product.price),
+    });
+  }
   const total = normalized.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const tx = db.transaction(() => {
     const order = db.prepare(
-      `INSERT INTO orders (telegram_id, customer_name, username, phone, address, comment, status, total_price)
-       VALUES (?, ?, ?, ?, ?, ?, 'awaiting_confirmation', ?)`
-    ).run(String(telegram_user.id || ""), customer_name, username || telegram_user.username || "", phone, address, comment, total);
+      `INSERT INTO orders (telegram_id, customer_name, username, phone, delivery_provider, address, comment, status, items_price, delivery_price, total_price)
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'new', ?, 0, ?)`
+    ).run(String(telegram_user.id || ""), customer_name, username || telegram_user.username || "", phone, delivery_provider, address, comment, total, total);
     const insertItem = db.prepare(
       "INSERT INTO order_items (order_id, product_id, title, quantity, price) VALUES (?, ?, ?, ?, ?)"
     );
@@ -464,8 +532,11 @@ app.post("/api/orders", (req, res) => {
     return order.lastInsertRowid;
   });
   const id = tx();
-  notifyAdmin(`Новый заказ #${id}\nКлиент: ${customer_name}\nТелефон: ${phone}\nСумма: ${total} ₽\nСтатус: ожидает подтверждения`);
-  res.json({ id, total_price: total, status: "awaiting_confirmation" });
+  const providerLabel = delivery_provider === "ozon" ? "Озон" : "Яндекс Маркет";
+  const itemLines = normalized.map((item) => `- ${item.title}: ${item.quantity} x ${item.price} ₽ = ${item.quantity * item.price} ₽`).join("\n");
+  const customerTelegram = username || telegram_user.username ? `@${String(username || telegram_user.username).replace(/^@/, "")}` : String(telegram_user.id || "не указан");
+  notifyAdmin(`Новый заказ #${id}\nКлиент: ${customer_name}\nTelegram: ${customerTelegram}\nТелефон: ${phone}\nПВЗ: ${providerLabel}\nАдрес: ${address}${comment ? `\nКомментарий: ${comment}` : ""}\n\n${itemLines}\n\nТовары: ${total} ₽\nДоставка: рассчитать\nИтого: товары + доставка`);
+  res.json({ id, items_price: total, delivery_price: 0, total_price: total, status: "new" });
 });
 
 function orderWithItems(order) {
@@ -483,6 +554,7 @@ app.get("/api/orders/:id", requireAdmin, (req, res) => {
 });
 
 const statusMessages = {
+  awaiting_payment: (o) => `Заказ #${o.id} рассчитан.\nТовары: ${o.items_price} ₽\nДоставка: ${o.delivery_price} ₽\nИтого: ${o.total_price} ₽\nАдминистратор скоро отправит реквизиты для оплаты: QR-код и номер карты.`,
   paid: (o) => `Оплата по заказу #${o.id} подтверждена. Заказ принят в работу.`,
   shipped: (o) => `Заказ #${o.id} отправлен.${o.track_number ? `\nТрек-номер: ${o.track_number}` : ""}`,
   completed: (o) => `Заказ #${o.id} завершен. Спасибо за покупку.`,
@@ -494,10 +566,16 @@ app.patch("/api/orders/:id", requireAdmin, (req, res) => {
   if (!existing) return res.status(404).json({ error: "Заказ не найден" });
   const status = req.body.status || existing.status;
   const track = req.body.track_number ?? existing.track_number;
-  db.prepare("UPDATE orders SET status = ?, track_number = ?, updated_at = datetime('now') WHERE id = ?")
-    .run(status, track, req.params.id);
+  const itemsPrice = req.body.items_price == null ? Number(existing.items_price || existing.total_price || 0) : Math.max(0, Number(req.body.items_price) || 0);
+  const deliveryPrice = req.body.delivery_price == null ? Number(existing.delivery_price || 0) : Math.max(0, Number(req.body.delivery_price) || 0);
+  const totalPrice = itemsPrice + deliveryPrice;
+  db.prepare("UPDATE orders SET status = ?, track_number = ?, items_price = ?, delivery_price = ?, total_price = ?, updated_at = datetime('now') WHERE id = ?")
+    .run(status, track, itemsPrice, deliveryPrice, totalPrice, req.params.id);
   const updated = db.prepare("SELECT * FROM orders WHERE id = ?").get(req.params.id);
-  if (statusMessages[status] && updated.telegram_id) notifyCustomer(updated.telegram_id, statusMessages[status](updated));
+  const calculationChanged = itemsPrice !== Number(existing.items_price || existing.total_price || 0) || deliveryPrice !== Number(existing.delivery_price || 0);
+  if (statusMessages[status] && updated.telegram_id && (status !== existing.status || (status === "awaiting_payment" && calculationChanged))) {
+    notifyCustomer(updated.telegram_id, statusMessages[status](updated));
+  }
   res.json(orderWithItems(updated));
 });
 
