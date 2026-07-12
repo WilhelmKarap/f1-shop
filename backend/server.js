@@ -4,26 +4,22 @@ const cors = require("cors");
 const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
+const os = require("os");
+const AdmZip = require("adm-zip");
+const Database = require("better-sqlite3");
 const { v4: uuid } = require("uuid");
 
 const db = require("./database");
 const { checkAdminPassword, checkWebAppInitData, createAdminSession, requireAdmin, upsertUser } = require("./auth");
 const { notifyAdmin, notifyCustomer } = require("./bot");
+const { databasePath, uploadsDir, uploadTypes, uploadPath, safeJoin, ensureStorage } = require("./storage");
 
 const app = express();
-const uploadsDir = path.join(__dirname, "uploads");
-const allowedUploadTypes = ["products", "categories", "banners", "qr", "logo"];
+const allowedUploadTypes = uploadTypes;
 
 app.use(cors({ origin: process.env.FRONTEND_ORIGIN || "*" }));
 app.use(express.json({ limit: "2mb" }));
 app.use("/uploads", express.static(uploadsDir));
-
-function uploadPath(type) {
-  const cleanType = allowedUploadTypes.includes(type) ? type : "products";
-  const dir = path.join(uploadsDir, cleanType);
-  fs.mkdirSync(dir, { recursive: true });
-  return { dir, cleanType };
-}
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadPath(req.query.type).dir),
@@ -38,6 +34,20 @@ const upload = multer({
     const ext = path.extname(file.originalname || "").toLowerCase();
     if (!allowedImageMimeTypes.has(file.mimetype) || !allowedImageExts.has(ext)) {
       cb(new Error("Only image files are allowed"));
+      return;
+    }
+    cb(null, true);
+  },
+});
+
+const restoreUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 128 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname || "").toLowerCase();
+    const allowedTypes = new Set(["application/zip", "application/x-zip-compressed", "multipart/x-zip", "application/octet-stream"]);
+    if (ext !== ".zip" || (file.mimetype && !allowedTypes.has(file.mimetype))) {
+      cb(new Error("Only ZIP backups are allowed"));
       return;
     }
     cb(null, true);
@@ -75,10 +85,246 @@ app.post("/api/upload", requireAdmin, (req, res) => {
     if (error) return res.status(400).json({ error: error.message || "Upload failed" });
     if (!req.file) return res.status(400).json({ error: "Файл не получен" });
     const { cleanType } = uploadPath(req.query.type);
-    res.json({ url: `/uploads/${cleanType}/${req.file.filename}` });
+  res.json({ url: `/uploads/${cleanType}/${req.file.filename}` });
   });
 });
 
+function normalizeZipName(name) {
+  const clean = String(name || "").replace(/\\/g, "/");
+  if (!clean || clean.startsWith("/") || /^[a-zA-Z]:\//.test(clean)) throw new Error("Invalid ZIP entry");
+  const normalized = path.posix.normalize(clean);
+  if (normalized === "." || normalized.startsWith("../") || normalized.includes("/../")) throw new Error("Invalid ZIP entry");
+  return normalized;
+}
+
+function isAllowedUploadEntry(name) {
+  const normalized = normalizeZipName(name);
+  return uploadTypes.some((type) => normalized === `uploads/${type}` || normalized.startsWith(`uploads/${type}/`));
+}
+
+function addDirectoryToZip(zip, sourceDir, zipPrefix) {
+  if (!fs.existsSync(sourceDir)) return;
+  for (const entry of fs.readdirSync(sourceDir, { withFileTypes: true })) {
+    const source = path.join(sourceDir, entry.name);
+    const zipName = `${zipPrefix}/${entry.name}`;
+    if (entry.isDirectory()) {
+      addDirectoryToZip(zip, source, zipName);
+    } else if (entry.isFile()) {
+      zip.addLocalFile(source, path.posix.dirname(zipName), path.posix.basename(zipName));
+    }
+  }
+}
+
+function validateRestoredDatabase(filePath) {
+  const restored = new Database(filePath, { readonly: true, fileMustExist: true });
+  try {
+    const integrity = restored.prepare("PRAGMA integrity_check").get();
+    if (!integrity || integrity.integrity_check !== "ok") throw new Error("Database integrity check failed");
+    const tables = ["categories", "products", "orders", "settings"];
+    for (const table of tables) {
+      const found = restored.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name=?").get(table);
+      if (!found) throw new Error(`Database table is missing: ${table}`);
+    }
+  } finally {
+    restored.close();
+  }
+}
+
+function replaceDatabase(restoredPath) {
+  validateRestoredDatabase(restoredPath);
+  const liveDb = db.getDb();
+  if (liveDb?.open) liveDb.close();
+  for (const suffix of ["", "-wal", "-shm"]) {
+    const file = `${databasePath}${suffix}`;
+    if (fs.existsSync(file)) fs.rmSync(file, { force: true });
+  }
+  fs.copyFileSync(restoredPath, databasePath);
+  db.reconnect();
+}
+
+function clearUploads() {
+  ensureStorage();
+  for (const type of uploadTypes) {
+    const dir = uploadPath(type).dir;
+    fs.rmSync(dir, { recursive: true, force: true });
+    fs.mkdirSync(dir, { recursive: true });
+  }
+}
+
+function restoreUploadsFrom(extractRoot) {
+  const sourceUploads = path.join(extractRoot, "uploads");
+  if (!fs.existsSync(sourceUploads)) return;
+  clearUploads();
+  for (const type of uploadTypes) {
+    const source = path.join(sourceUploads, type);
+    const target = uploadPath(type).dir;
+    if (!fs.existsSync(source)) continue;
+    fs.cpSync(source, target, {
+      recursive: true,
+      errorOnExist: false,
+      filter: (sourcePath) => {
+        const rel = path.relative(source, sourcePath);
+        if (!rel) return true;
+        safeJoin(target, rel);
+        return true;
+      },
+    });
+  }
+}
+
+function readJsonIfExists(root, fileName) {
+  const file = path.join(root, fileName);
+  if (!fs.existsSync(file)) return null;
+  return JSON.parse(fs.readFileSync(file, "utf8"));
+}
+
+function importLegacyAssets(root, value) {
+  if (!value || typeof value !== "string") return value || "";
+  const normalized = value.replace(/\\/g, "/").replace(/^\/+/, "");
+  if (!normalized.startsWith("uploads/") || !isAllowedUploadEntry(normalized)) return value;
+  const source = path.join(root, normalized);
+  if (!fs.existsSync(source) || !fs.statSync(source).isFile()) return value;
+  const target = safeJoin(path.dirname(uploadsDir), normalized);
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  if (!fs.existsSync(target)) fs.copyFileSync(source, target);
+  return `/${normalized}`;
+}
+
+function importLegacyData(root) {
+  const legacyCategories = readJsonIfExists(root, "categories.json");
+  const legacyProducts = readJsonIfExists(root, "products.json");
+  const legacySettings = readJsonIfExists(root, "settings.json");
+  const imported = { categories: 0, products: 0, settings: 0 };
+
+  if (legacySettings && typeof legacySettings === "object") {
+    const upsert = db.prepare("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value");
+    for (const [key, value] of Object.entries(legacySettings)) {
+      upsert.run(key, String(importLegacyAssets(root, value) ?? ""));
+      imported.settings += 1;
+    }
+  }
+
+  if (Array.isArray(legacyCategories)) {
+    const insert = db.prepare("INSERT INTO categories (name, description, image, sort_order) VALUES (?, ?, ?, ?)");
+    const update = db.prepare("UPDATE categories SET description = ?, image = ?, sort_order = ? WHERE id = ?");
+    for (const item of legacyCategories) {
+      if (!item?.name) continue;
+      const image = importLegacyAssets(root, item.image);
+      const existing = db.prepare("SELECT * FROM categories WHERE lower(name) = lower(?)").get(item.name);
+      if (existing) update.run(item.description || "", image || "", Number(item.sort_order) || 0, existing.id);
+      else insert.run(item.name, item.description || "", image || "", Number(item.sort_order) || 0);
+      imported.categories += 1;
+    }
+  }
+
+  if (Array.isArray(legacyProducts)) {
+    const insert = db.prepare(
+      `INSERT INTO products
+       (category_id, title, description, price, old_price, image, is_weekly_discount, is_available, is_draft, sort_order)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    );
+    const update = db.prepare(
+      `UPDATE products SET category_id = ?, description = ?, price = ?, old_price = ?, image = ?,
+       is_weekly_discount = ?, is_available = ?, is_draft = ?, sort_order = ?, updated_at = datetime('now')
+       WHERE id = ?`
+    );
+    for (const item of legacyProducts) {
+      if (!item?.title) continue;
+      let categoryId = item.category_id || null;
+      if (item.category_name) {
+        const category = db.prepare("SELECT id FROM categories WHERE lower(name) = lower(?)").get(item.category_name);
+        categoryId = category?.id || categoryId;
+      }
+      const image = importLegacyAssets(root, item.image);
+      const existing = db.prepare("SELECT * FROM products WHERE lower(title) = lower(?) AND COALESCE(category_id, 0) = COALESCE(?, 0)").get(item.title, categoryId);
+      const oldPrice = item.old_price === "" || item.old_price == null ? null : Number(item.old_price);
+      const values = [
+        categoryId,
+        item.description || "",
+        Number(item.price) || 0,
+        oldPrice,
+        image || "",
+        item.is_weekly_discount ? 1 : 0,
+        item.is_available === false ? 0 : 1,
+        item.is_draft ? 1 : 0,
+        Number(item.sort_order) || 0,
+      ];
+      if (existing) update.run(...values, existing.id);
+      else insert.run(categoryId, item.title, item.description || "", Number(item.price) || 0, oldPrice, image || "", item.is_weekly_discount ? 1 : 0, item.is_available === false ? 0 : 1, item.is_draft ? 1 : 0, Number(item.sort_order) || 0);
+      imported.products += 1;
+    }
+  }
+
+  return imported;
+}
+
+function extractValidatedBackup(buffer) {
+  const zip = new AdmZip(buffer);
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "f1-shop-restore-"));
+  let hasKnownContent = false;
+  for (const entry of zip.getEntries()) {
+    const name = normalizeZipName(entry.entryName);
+    const isAllowed =
+      name === "database.db" ||
+      name === "manifest.json" ||
+      name === "products.json" ||
+      name === "categories.json" ||
+      name === "settings.json" ||
+      isAllowedUploadEntry(name);
+    if (!isAllowed) throw new Error(`Unsupported backup entry: ${name}`);
+    if (entry.isDirectory) continue;
+    hasKnownContent = true;
+    const target = safeJoin(tempRoot, name);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, entry.getData());
+  }
+  if (!hasKnownContent) throw new Error("Backup archive is empty");
+  return tempRoot;
+}
+
+app.get("/api/admin/backup", requireAdmin, async (req, res) => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "f1-shop-backup-"));
+  const backupDbPath = path.join(tempDir, "database.db");
+  try {
+    await db.backup(backupDbPath);
+    const zip = new AdmZip();
+    zip.addLocalFile(backupDbPath, "", "database.db");
+    addDirectoryToZip(zip, uploadsDir, "uploads");
+    zip.addFile("manifest.json", Buffer.from(JSON.stringify({
+      app: "F1 Constructor Shop",
+      created_at: new Date().toISOString(),
+      contains: ["database.db", "uploads"],
+    }, null, 2)));
+    const data = zip.toBuffer();
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Disposition", `attachment; filename="f1-shop-backup-${Date.now()}.zip"`);
+    res.send(data);
+  } catch (error) {
+    res.status(500).json({ error: error.message || "Backup failed" });
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+app.post("/api/admin/restore", requireAdmin, (req, res) => {
+  restoreUpload.single("file")(req, res, (error) => {
+    if (error) return res.status(400).json({ error: error.message || "Restore upload failed" });
+    if (!req.file) return res.status(400).json({ error: "ZIP file is required" });
+    let tempRoot = "";
+    try {
+      tempRoot = extractValidatedBackup(req.file.buffer);
+      const restoredDb = path.join(tempRoot, "database.db");
+      if (fs.existsSync(restoredDb)) replaceDatabase(restoredDb);
+      restoreUploadsFrom(tempRoot);
+      const imported = importLegacyData(tempRoot);
+      res.json({ ok: true, imported });
+    } catch (restoreError) {
+      res.status(400).json({ error: restoreError.message || "Restore failed" });
+    } finally {
+      if (tempRoot) fs.rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+});
 
 app.get("/api/categories", (req, res) => {
   res.json(db.prepare("SELECT * FROM categories ORDER BY sort_order, id").all());
