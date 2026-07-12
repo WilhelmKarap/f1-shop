@@ -39,6 +39,36 @@ async function upload(type, file) {
   return res.json();
 }
 
+async function downloadBackup() {
+  const res = await fetch(`${API}/api/admin/backup`, { headers: { Authorization: `Bearer ${token}` } });
+  if (res.status === 401 || res.status === 403) {
+    resetSession();
+    throw new Error("Сессия истекла. Войдите заново.");
+  }
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Не удалось скачать резервную копию");
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `f1-shop-backup-${new Date().toISOString().slice(0, 10)}.zip`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function restoreBackup(file) {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API}/api/admin/restore`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
+  if (res.status === 401 || res.status === 403) {
+    resetSession();
+    throw new Error("Сессия истекла. Войдите заново.");
+  }
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Не удалось восстановить резервную копию");
+  return res.json();
+}
+
 function showLogin() {
   $("#loginScreen").classList.remove("hidden");
   $("#adminLayout").classList.add("hidden");
@@ -250,5 +280,26 @@ for (const form of [$("#settingsForm"), $("#bannersForm")]) {
     loadSettings();
   };
 }
+
+$("#downloadBackup").onclick = async () => {
+  try {
+    await downloadBackup();
+  } catch (error) {
+    alert(error.message);
+  }
+};
+
+$("#restoreBackup").onclick = async () => {
+  const file = $("#restoreBackupFile").files?.[0];
+  if (!file) return alert("Выберите ZIP-файл резервной копии");
+  if (!confirm("Восстановить резервную копию? Текущая база и загруженные файлы будут заменены данными из архива.")) return;
+  try {
+    await restoreBackup(file);
+    alert("Резервная копия восстановлена");
+    await Promise.all([loadSettings(), loadCategories(), loadProducts(), loadDashboard()]);
+  } catch (error) {
+    alert(error.message);
+  }
+};
 
 checkSession();

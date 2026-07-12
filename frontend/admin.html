@@ -85,6 +85,15 @@
             <label class="field">Приветствие бота<textarea name="welcome_text"></textarea></label>
             <button class="btn btn-primary">Сохранить</button>
           </form>
+          <div class="panel backup-panel">
+            <h2>Резервные копии</h2>
+            <p class="muted">Скачайте ZIP перед крупными изменениями или восстановите ранее сохраненную копию магазина.</p>
+            <div class="backup-actions">
+              <button class="btn btn-secondary" id="downloadBackup" type="button">Скачать резервную копию</button>
+              <label class="field">ZIP-файл резервной копии<input id="restoreBackupFile" type="file" accept=".zip,application/zip" /></label>
+              <button class="btn btn-primary" id="restoreBackup" type="button">Восстановить резервную копию</button>
+            </div>
+          </div>
         </section>
       </section>
     </main>
