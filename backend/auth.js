@@ -4,17 +4,20 @@ const db = require("./database");
 
 const JWT_SECRET = process.env.JWT_SECRET || "change-me";
 
-function checkTelegramLogin(data, botToken) {
-  if (!botToken || !data?.hash) return false;
-  const { hash, ...fields } = data;
-  const checkString = Object.keys(fields)
-    .sort()
-    .map((key) => `${key}=${fields[key]}`)
-    .join("\n");
-  const secretKey = crypto.createHash("sha256").update(botToken).digest();
-  const digest = crypto.createHmac("sha256", secretKey).update(checkString).digest("hex");
-  const authDate = Number(fields.auth_date || 0);
-  return digest === hash && Math.floor(Date.now() / 1000) - authDate < 86400;
+function safeEqual(a, b) {
+  const left = Buffer.from(String(a || ""));
+  const right = Buffer.from(String(b || ""));
+  return left.length === right.length && crypto.timingSafeEqual(left, right);
+}
+
+function checkAdminPassword(login, password) {
+  const expectedLogin = process.env.ADMIN_LOGIN || "";
+  const expectedPassword = process.env.ADMIN_PASSWORD || "";
+  const expectedSecret = process.env.ADMIN_SECRET || "";
+
+  if (expectedSecret && safeEqual(password, expectedSecret)) return true;
+  if (!expectedLogin || !expectedPassword) return false;
+  return safeEqual(login, expectedLogin) && safeEqual(password, expectedPassword);
 }
 
 function checkWebAppInitData(initData, botToken) {
@@ -43,11 +46,11 @@ function upsertUser(user, isAdmin = 0) {
   ).run(String(user.id), user.username || "", user.first_name || "", user.last_name || "", isAdmin ? 1 : 0);
 }
 
-function createSessionToken(user) {
+function createAdminSession(login) {
   return jwt.sign(
-    { id: String(user.id), username: user.username || "", first_name: user.first_name || "" },
+    { role: "admin", login: String(login || "admin") },
     JWT_SECRET,
-    { expiresIn: "30d" }
+    { expiresIn: "12h" }
   );
 }
 
@@ -56,14 +59,14 @@ function requireAdmin(req, res, next) {
   const token = header.startsWith("Bearer ") ? header.slice(7) : "";
   try {
     const payload = jwt.verify(token, JWT_SECRET);
-    if (String(payload.id) !== String(process.env.ADMIN_ID)) {
-      return res.status(403).json({ error: "Доступ запрещен" });
+    if (payload.role !== "admin") {
+      return res.status(403).json({ error: "Forbidden" });
     }
     req.admin = payload;
     next();
   } catch {
-    res.status(403).json({ error: "Доступ запрещен" });
+    res.status(401).json({ error: "Unauthorized" });
   }
 }
 
-module.exports = { checkTelegramLogin, checkWebAppInitData, createSessionToken, requireAdmin, upsertUser };
+module.exports = { checkAdminPassword, checkWebAppInitData, createAdminSession, requireAdmin, upsertUser };
