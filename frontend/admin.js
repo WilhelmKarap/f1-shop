@@ -363,11 +363,16 @@ $("#downloadBackup").onclick = async () => {
 $("#restoreBackup").onclick = async () => {
   const file = $("#restoreBackupFile").files?.[0];
   if (!file) return alert("Выберите ZIP-файл резервной копии");
-  if (!confirm("Восстановить резервную копию? Текущая база и загруженные файлы будут заменены данными из архива.")) return;
+  if (!confirm("Восстановить резервную копию? Данные магазина будут обновлены содержимым архива.")) return;
   try {
-    await restoreBackup(file);
-    alert("Резервная копия восстановлена");
-    await Promise.all([loadSettings(), loadCategories(), loadProducts(), loadDashboard()]);
+    const result = await restoreBackup(file);
+    const imported = result.imported || {};
+    await loadSettings();
+    await loadCategories();
+    await loadSubcategories();
+    await loadProducts();
+    await loadDashboard();
+    alert(`Восстановление завершено. Категории: ${imported.categories || 0}, товары: ${imported.products || 0}, настройки: ${imported.settings || 0}.`);
   } catch (error) {
     alert(error.message);
   }

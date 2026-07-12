@@ -90,8 +90,10 @@ app.post("/api/upload", requireAdmin, (req, res) => {
 });
 
 function normalizeZipName(name) {
-  const clean = String(name || "").replace(/\\/g, "/");
-  if (!clean || clean.startsWith("/") || /^[a-zA-Z]:\//.test(clean)) throw new Error("Invalid ZIP entry");
+  let clean = String(name || "").replace(/\\/g, "/");
+  while (clean.startsWith("./")) clean = clean.slice(2);
+  if (!clean || clean === ".") return "";
+  if (clean.startsWith("/") || /^[a-zA-Z]:\//.test(clean)) throw new Error("Invalid ZIP entry");
   const normalized = path.posix.normalize(clean);
   if (normalized === "." || normalized.startsWith("../") || normalized.includes("/../")) throw new Error("Invalid ZIP entry");
   return normalized;
@@ -151,9 +153,15 @@ function clearUploads() {
   }
 }
 
-function restoreUploadsFrom(extractRoot) {
+function directoryHasFiles(dir) {
+  if (!fs.existsSync(dir)) return false;
+  return fs.readdirSync(dir, { withFileTypes: true }).some((entry) => entry.isFile() || (entry.isDirectory() && directoryHasFiles(path.join(dir, entry.name))));
+}
+
+function restoreUploadsFrom(extractRoot, replaceEmptyUploads = false) {
   const sourceUploads = path.join(extractRoot, "uploads");
   if (!fs.existsSync(sourceUploads)) return;
+  if (!replaceEmptyUploads && !directoryHasFiles(sourceUploads)) return;
   clearUploads();
   for (const type of uploadTypes) {
     const source = path.join(sourceUploads, type);
@@ -173,7 +181,9 @@ function restoreUploadsFrom(extractRoot) {
 }
 
 function readJsonIfExists(root, fileName) {
-  const file = path.join(root, fileName);
+  const regular = path.join(root, fileName);
+  const textExport = path.join(root, `${fileName}.txt`);
+  const file = fs.existsSync(regular) ? regular : textExport;
   if (!fs.existsSync(file)) return null;
   return JSON.parse(fs.readFileSync(file, "utf8"));
 }
@@ -195,6 +205,7 @@ function importLegacyData(root) {
   const legacyProducts = readJsonIfExists(root, "products.json");
   const legacySettings = readJsonIfExists(root, "settings.json");
   const imported = { categories: 0, products: 0, settings: 0 };
+  const categoryIdMap = new Map();
 
   if (legacySettings && typeof legacySettings === "object") {
     const upsert = db.prepare("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value");
@@ -211,8 +222,14 @@ function importLegacyData(root) {
       if (!item?.name) continue;
       const image = importLegacyAssets(root, item.image);
       const existing = db.prepare("SELECT * FROM categories WHERE lower(name) = lower(?)").get(item.name);
-      if (existing) update.run(item.description || "", image || "", Number(item.sort_order) || 0, existing.id);
-      else insert.run(item.name, item.description || "", image || "", Number(item.sort_order) || 0);
+      let categoryId;
+      if (existing) {
+        update.run(item.description || "", image || "", Number(item.sort_order) || 0, existing.id);
+        categoryId = existing.id;
+      } else {
+        categoryId = Number(insert.run(item.name, item.description || "", image || "", Number(item.sort_order) || 0).lastInsertRowid);
+      }
+      if (item.id != null) categoryIdMap.set(String(item.id), categoryId);
       imported.categories += 1;
     }
   }
@@ -230,7 +247,7 @@ function importLegacyData(root) {
     );
     for (const item of legacyProducts) {
       if (!item?.title) continue;
-      let categoryId = item.category_id || null;
+      let categoryId = categoryIdMap.get(String(item.category_id)) || item.category_id || null;
       if (item.category_name) {
         const category = db.prepare("SELECT id FROM categories WHERE lower(name) = lower(?)").get(item.category_name);
         categoryId = category?.id || categoryId;
@@ -262,8 +279,18 @@ function extractValidatedBackup(buffer) {
   const zip = new AdmZip(buffer);
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "f1-shop-restore-"));
   let hasKnownContent = false;
-  for (const entry of zip.getEntries()) {
-    const name = normalizeZipName(entry.entryName);
+  const entries = zip.getEntries().map((entry) => ({ entry, name: normalizeZipName(entry.entryName) }));
+  const meaningfulNames = entries.filter(({ name }) => name).map(({ name }) => name);
+  const firstSegments = new Set(meaningfulNames.map((name) => name.split("/")[0]));
+  const hasWrapper = firstSegments.size === 1 && meaningfulNames.some((name) => name.includes("/"));
+  const wrapper = hasWrapper ? [...firstSegments][0] : "";
+
+  for (const { entry, name: originalName } of entries) {
+    let name = wrapper && (originalName === wrapper || originalName.startsWith(`${wrapper}/`))
+      ? originalName.slice(wrapper.length).replace(/^\//, "")
+      : originalName;
+    if (!name) continue;
+    if (["products.json.txt", "categories.json.txt", "settings.json.txt"].includes(name)) name = name.slice(0, -4);
     const isAllowed =
       name === "database.db" ||
       name === "manifest.json" ||
@@ -315,7 +342,7 @@ app.post("/api/admin/restore", requireAdmin, (req, res) => {
       tempRoot = extractValidatedBackup(req.file.buffer);
       const restoredDb = path.join(tempRoot, "database.db");
       if (fs.existsSync(restoredDb)) replaceDatabase(restoredDb);
-      restoreUploadsFrom(tempRoot);
+      restoreUploadsFrom(tempRoot, fs.existsSync(restoredDb));
       const imported = importLegacyData(tempRoot);
       res.json({ ok: true, imported });
     } catch (restoreError) {
