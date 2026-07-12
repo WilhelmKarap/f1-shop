@@ -68,7 +68,7 @@ function settingsObject() {
   return Object.fromEntries(rows.map((row) => [row.key, row.value]));
 }
 
-app.get("/api/health", (req, res) => res.json({ ok: true }));
+app.get("/api/health", (req, res) => res.json({ ok: true, version: "2026-07-13.3" }));
 
 app.post("/api/admin/login", (req, res) => {
   const { login = "", password = "" } = req.body || {};

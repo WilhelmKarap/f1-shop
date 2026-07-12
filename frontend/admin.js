@@ -12,6 +12,11 @@ const money = (v) => `${new Intl.NumberFormat("ru-RU").format(v || 0)} ₽`;
 const asset = (url) => url ? (url.startsWith("http") ? url : `${API}${url}`) : "";
 const headers = () => ({ "Content-Type": "application/json", Authorization: `Bearer ${token}` });
 
+window.addEventListener("unhandledrejection", (event) => {
+  event.preventDefault();
+  alert(event.reason?.message || "Не удалось выполнить действие");
+});
+
 function resetSession() {
   token = "";
   localStorage.removeItem("admin_token");
@@ -23,6 +28,9 @@ async function api(path, options = {}) {
   if (res.status === 401 || res.status === 403) {
     resetSession();
     throw new Error("Сессия истекла. Войдите заново.");
+  }
+  if (res.status === 404 && path.startsWith("/api/subcategories")) {
+    throw new Error("Backend на Railway не обновлен: маршруты подкатегорий отсутствуют. Выполните новый Deploy backend.");
   }
   if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Ошибка запроса");
   return res.json();
