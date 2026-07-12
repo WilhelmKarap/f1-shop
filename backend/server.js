@@ -7,7 +7,7 @@ const fs = require("fs");
 const { v4: uuid } = require("uuid");
 
 const db = require("./database");
-const { checkTelegramLogin, checkWebAppInitData, createSessionToken, requireAdmin, upsertUser } = require("./auth");
+const { checkAdminPassword, checkWebAppInitData, createAdminSession, requireAdmin, upsertUser } = require("./auth");
 const { notifyAdmin, notifyCustomer } = require("./bot");
 
 const app = express();
@@ -29,7 +29,20 @@ const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadPath(req.query.type).dir),
   filename: (req, file, cb) => cb(null, `${uuid()}${path.extname(file.originalname) || ".jpg"}`),
 });
-const upload = multer({ storage, limits: { fileSize: 8 * 1024 * 1024 } });
+const allowedImageMimeTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml"]);
+const allowedImageExts = new Set([".jpg", ".jpeg", ".png", ".webp", ".gif", ".svg"]);
+const upload = multer({
+  storage,
+  limits: { fileSize: 8 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname || "").toLowerCase();
+    if (!allowedImageMimeTypes.has(file.mimetype) || !allowedImageExts.has(ext)) {
+      cb(new Error("Only image files are allowed"));
+      return;
+    }
+    cb(null, true);
+  },
+});
 
 function rowToProduct(row) {
   return {
@@ -47,25 +60,25 @@ function settingsObject() {
 
 app.get("/api/health", (req, res) => res.json({ ok: true }));
 
-app.post("/api/login", (req, res) => {
-  const user = req.body;
-  if (!checkTelegramLogin(user, process.env.BOT_TOKEN)) {
-    return res.status(403).json({ error: "Не удалось подтвердить Telegram" });
+app.post("/api/admin/login", (req, res) => {
+  const { login = "", password = "" } = req.body || {};
+  if (!checkAdminPassword(login, password)) {
+    return res.status(401).json({ error: "Invalid login or password" });
   }
-  if (String(user.id) !== String(process.env.ADMIN_ID)) {
-    return res.status(403).json({ error: "Доступ запрещен" });
-  }
-  upsertUser(user, 1);
-  res.json({ token: createSessionToken(user), user: { id: user.id, username: user.username, first_name: user.first_name } });
+  res.json({ token: createAdminSession(login), user: { login } });
 });
 
 app.get("/api/me", requireAdmin, (req, res) => res.json({ ok: true, admin: req.admin }));
 
-app.post("/api/upload", requireAdmin, upload.single("file"), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: "Файл не получен" });
-  const { cleanType } = uploadPath(req.query.type);
-  res.json({ url: `/uploads/${cleanType}/${req.file.filename}` });
+app.post("/api/upload", requireAdmin, (req, res) => {
+  upload.single("file")(req, res, (error) => {
+    if (error) return res.status(400).json({ error: error.message || "Upload failed" });
+    if (!req.file) return res.status(400).json({ error: "Файл не получен" });
+    const { cleanType } = uploadPath(req.query.type);
+    res.json({ url: `/uploads/${cleanType}/${req.file.filename}` });
+  });
 });
+
 
 app.get("/api/categories", (req, res) => {
   res.json(db.prepare("SELECT * FROM categories ORDER BY sort_order, id").all());
@@ -94,7 +107,7 @@ app.delete("/api/categories/:id", requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-app.get("/api/products", (req, res) => {
+function sendProducts(req, res) {
   const params = [];
   let sql = "SELECT * FROM products WHERE 1=1";
   if (req.query.category_id) {
@@ -105,11 +118,21 @@ app.get("/api/products", (req, res) => {
   if (req.query.admin !== "1") sql += " AND is_available = 1 AND is_draft = 0";
   sql += " ORDER BY sort_order, id DESC";
   res.json(db.prepare(sql).all(...params).map(rowToProduct));
+}
+
+app.get("/api/products", (req, res) => {
+  if (req.query.admin === "1") {
+    return requireAdmin(req, res, () => sendProducts(req, res));
+  }
+  return sendProducts(req, res);
 });
 
 app.get("/api/products/:id", (req, res) => {
   const row = db.prepare("SELECT * FROM products WHERE id = ?").get(req.params.id);
   if (!row) return res.status(404).json({ error: "Товар не найден" });
+  if (row.is_draft || !row.is_available) {
+    return requireAdmin(req, res, () => res.json(rowToProduct(row)));
+  }
   res.json(rowToProduct(row));
 });
 
