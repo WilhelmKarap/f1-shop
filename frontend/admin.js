@@ -1,5 +1,4 @@
 const API = window.F1_CONFIG.API_URL;
-const BOT_USERNAME = window.F1_CONFIG.BOT_USERNAME;
 let token = localStorage.getItem("admin_token") || "";
 let categories = [];
 let products = [];
@@ -12,8 +11,18 @@ const money = (v) => `${new Intl.NumberFormat("ru-RU").format(v || 0)} ₽`;
 const asset = (url) => url ? (url.startsWith("http") ? url : `${API}${url}`) : "";
 const headers = () => ({ "Content-Type": "application/json", Authorization: `Bearer ${token}` });
 
+function resetSession() {
+  token = "";
+  localStorage.removeItem("admin_token");
+  showLogin();
+}
+
 async function api(path, options = {}) {
   const res = await fetch(`${API}${path}`, { ...options, headers: { ...headers(), ...(options.headers || {}) } });
+  if (res.status === 401 || res.status === 403) {
+    resetSession();
+    throw new Error("Сессия истекла. Войдите заново.");
+  }
   if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Ошибка запроса");
   return res.json();
 }
@@ -22,45 +31,18 @@ async function upload(type, file) {
   const form = new FormData();
   form.append("file", file);
   const res = await fetch(`${API}/api/upload?type=${type}`, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: form });
-  if (!res.ok) throw new Error("Не удалось загрузить файл");
+  if (res.status === 401 || res.status === 403) {
+    resetSession();
+    throw new Error("Сессия истекла. Войдите заново.");
+  }
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Не удалось загрузить файл");
   return res.json();
 }
 
 function showLogin() {
   $("#loginScreen").classList.remove("hidden");
   $("#adminLayout").classList.add("hidden");
-  $("#telegramLogin").innerHTML = "";
-  const script = document.createElement("script");
-  script.src = "https://telegram.org/js/telegram-widget.js?22";
-  script.setAttribute("data-telegram-login", BOT_USERNAME);
-  script.setAttribute("data-size", "large");
-  script.setAttribute("data-radius", "10");
-  script.setAttribute("data-onauth", "onTelegramAuth(user)");
-  script.setAttribute("data-request-access", "write");
-  $("#telegramLogin").appendChild(script);
-}
-
-window.onTelegramAuth = async (user) => {
-  try {
-    const data = await api("/api/login", { method: "POST", body: JSON.stringify(user), headers: { Authorization: "" } });
-    token = data.token;
-    localStorage.setItem("admin_token", token);
-    showAdmin();
-  } catch (e) {
-    $("#loginError").textContent = e.message;
-  }
-};
-
-async function checkSession() {
-  if (!token) return showLogin();
-  try {
-    await api("/api/me");
-    showAdmin();
-  } catch {
-    localStorage.removeItem("admin_token");
-    token = "";
-    showLogin();
-  }
+  $("#loginError").textContent = "";
 }
 
 function showAdmin() {
@@ -68,6 +50,41 @@ function showAdmin() {
   $("#adminLayout").classList.remove("hidden");
   loadPage("dashboard");
 }
+
+async function checkSession() {
+  if (!token) return showLogin();
+  try {
+    await api("/api/me");
+    showAdmin();
+  } catch {
+    resetSession();
+  }
+}
+
+$("#loginForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  $("#loginError").textContent = "";
+  try {
+    const data = await fetch(`${API}/api/admin/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        login: form.login.value,
+        password: form.password.value,
+      }),
+    }).then(async (res) => {
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Неверный логин или пароль");
+      return res.json();
+    });
+    token = data.token;
+    localStorage.setItem("admin_token", token);
+    form.password.value = "";
+    showAdmin();
+  } catch (error) {
+    $("#loginError").textContent = error.message;
+  }
+});
 
 function openOverlay(id) { $(`#${id}`).classList.add("visible"); }
 function closeOverlay(id) { $(`#${id}`).classList.remove("visible"); }
@@ -183,7 +200,7 @@ window.openOrder = (id) => {
 
 $("#newCategory").onclick = () => { $("#categoryForm").reset(); $("#categoryForm").id.value = ""; openOverlay("categoryModal"); };
 $("#newProduct").onclick = async () => { if (!categories.length) await loadCategories(); $("#productForm").reset(); $("#productForm").id.value = ""; $("#productForm").is_available.checked = true; openOverlay("productModal"); };
-$("#logout").onclick = () => { localStorage.removeItem("admin_token"); location.reload(); };
+$("#logout").onclick = () => resetSession();
 
 document.addEventListener("click", (e) => {
   const nav = e.target.closest("[data-page]");
