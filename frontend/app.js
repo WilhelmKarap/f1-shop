@@ -175,7 +175,8 @@ document.addEventListener("click", (e) => {
 
 $("#checkoutForm").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const form = Object.fromEntries(new FormData(e.currentTarget).entries());
+  const checkoutForm = e.currentTarget;
+  const form = Object.fromEntries(new FormData(checkoutForm).entries());
   const payload = {
     ...form,
     initData: tg?.initData || "",
@@ -183,7 +184,7 @@ $("#checkoutForm").addEventListener("submit", async (e) => {
     username: telegramUser().username || "",
     items: cart.map(({ product_id, title, price, quantity }) => ({ product_id, title, price, quantity })),
   };
-  const submit = e.currentTarget.querySelector("button[type=submit]");
+  const submit = checkoutForm.querySelector("button[type=submit]");
   submit.disabled = true;
   try {
     const order = await getJson("/api/orders", {
@@ -193,7 +194,7 @@ $("#checkoutForm").addEventListener("submit", async (e) => {
     });
     cart = [];
     renderCart();
-    e.currentTarget.reset();
+    checkoutForm.reset();
     closeOverlay("checkoutOverlay");
     closeOverlay("cartOverlay");
     $("#orderSuccessText").textContent = `Заказ #${order.id} отправлен администратору. Скоро администратор рассчитает доставку и отправит реквизиты для оплаты: QR-код и номер карты.`;
