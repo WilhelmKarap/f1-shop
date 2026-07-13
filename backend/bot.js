@@ -1,6 +1,9 @@
 require("dotenv").config();
+const fs = require("fs");
+const path = require("path");
 const TelegramBot = require("node-telegram-bot-api");
 const db = require("./database");
+const { uploadsDir } = require("./storage");
 
 const token = process.env.BOT_TOKEN;
 const webAppUrl = process.env.WEBAPP_URL;
@@ -26,6 +29,30 @@ function normalizeTelegramUrl(value) {
   if (raw.startsWith("@")) return `https://t.me/${raw.slice(1)}`;
   if (raw.startsWith("t.me/")) return `https://${raw}`;
   return `https://t.me/${raw.replace(/^\/+/, "")}`;
+}
+
+function normalizeHttpUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (raw.startsWith("http://") || raw.startsWith("https://")) return raw;
+  return "";
+}
+
+function qrImagePath(value) {
+  const raw = String(value || "").trim();
+  if (!raw.startsWith("/uploads/qr/")) return "";
+  const filename = path.basename(raw);
+  const filePath = path.join(uploadsDir, "qr", filename);
+  return fs.existsSync(filePath) ? filePath : "";
+}
+
+function paymentKeyboard(settings) {
+  const managerUrl = normalizeTelegramUrl(settings.manager_url || settings.manager_username || process.env.MANAGER_URL);
+  const paymentLink = normalizeHttpUrl(settings.payment_link);
+  const keyboard = [];
+  if (paymentLink) keyboard.push([{ text: "Оплатить по ссылке", url: paymentLink }]);
+  keyboard.push([{ text: "Связаться с менеджером", url: managerUrl }]);
+  return { inline_keyboard: keyboard };
 }
 
 function startPolling() {
@@ -72,4 +99,21 @@ async function notifyCustomer(chatId, text) {
   if (instance && chatId) await instance.sendMessage(chatId, text).catch(() => {});
 }
 
-module.exports = { startPolling, notifyAdmin, notifyCustomer };
+async function notifyCustomerPayment(chatId, text) {
+  const instance = getBot();
+  if (!instance || !chatId) return;
+  const settings = getSettings();
+  const reply_markup = paymentKeyboard(settings);
+  const photo = qrImagePath(settings.qr_image);
+  if (photo) {
+    await instance.sendPhoto(chatId, photo, { caption: text, reply_markup }).catch(async () => {
+      await instance.sendDocument(chatId, photo, { caption: text, reply_markup }).catch(async () => {
+        await instance.sendMessage(chatId, text, { reply_markup }).catch(() => {});
+      });
+    });
+    return;
+  }
+  await instance.sendMessage(chatId, text, { reply_markup }).catch(() => {});
+}
+
+module.exports = { startPolling, notifyAdmin, notifyCustomer, notifyCustomerPayment };

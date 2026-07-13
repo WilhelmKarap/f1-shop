@@ -197,7 +197,7 @@ $("#checkoutForm").addEventListener("submit", async (e) => {
     checkoutForm.reset();
     closeOverlay("checkoutOverlay");
     closeOverlay("cartOverlay");
-    $("#orderSuccessText").textContent = `Заказ #${order.id} отправлен администратору. Скоро администратор рассчитает доставку и отправит реквизиты для оплаты: QR-код и номер карты.`;
+    $("#orderSuccessText").textContent = `Заказ #${order.id} отправлен администратору. Скоро администратор рассчитает доставку и отправит QR-код или ссылку для оплаты.`;
     openOverlay("orderSuccessOverlay");
   } catch (error) {
     tg?.showAlert ? tg.showAlert(error.message) : alert(error.message);

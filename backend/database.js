@@ -126,6 +126,7 @@ function seedIfEmpty(instance) {
     banner_image: "",
     logo_image: "",
     qr_image: "",
+    payment_link: "",
     delivery_text: "Delivery across Russia.",
     payment_text: "Payment by QR transfer. The moderator confirms the order after payment.",
     welcome_text: [

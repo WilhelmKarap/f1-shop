@@ -11,7 +11,7 @@ const { v4: uuid } = require("uuid");
 
 const db = require("./database");
 const { checkAdminPassword, checkWebAppInitData, createAdminSession, requireAdmin, upsertUser } = require("./auth");
-const { notifyAdmin, notifyCustomer } = require("./bot");
+const { notifyAdmin, notifyCustomer, notifyCustomerPayment } = require("./bot");
 const { databasePath, uploadsDir, uploadTypes, uploadPath, safeJoin, ensureStorage } = require("./storage");
 
 const app = express();
@@ -68,7 +68,7 @@ function settingsObject() {
   return Object.fromEntries(rows.map((row) => [row.key, row.value]));
 }
 
-app.get("/api/health", (req, res) => res.json({ ok: true, version: "2026-07-13.3" }));
+app.get("/api/health", (req, res) => res.json({ ok: true, version: "2026-07-13.4" }));
 
 app.post("/api/admin/login", (req, res) => {
   const { login = "", password = "" } = req.body || {};
@@ -581,7 +581,7 @@ app.get("/api/orders/:id", requireAdmin, (req, res) => {
 });
 
 const statusMessages = {
-  awaiting_payment: (o) => `Заказ #${o.id} рассчитан.\nТовары: ${o.items_price} ₽\nДоставка: ${o.delivery_price} ₽\nИтого: ${o.total_price} ₽\nАдминистратор скоро отправит реквизиты для оплаты: QR-код и номер карты.`,
+  awaiting_payment: (o) => `Заказ #${o.id} рассчитан.\nТовары: ${o.items_price} ₽\nДоставка: ${o.delivery_price} ₽\nИтого: ${o.total_price} ₽\n\nОплата доступна по QR-коду или по ссылке ниже.`,
   paid: (o) => `Оплата по заказу #${o.id} подтверждена. Заказ принят в работу.`,
   shipped: (o) => `Заказ #${o.id} отправлен.${o.track_number ? `\nТрек-номер: ${o.track_number}` : ""}`,
   completed: (o) => `Заказ #${o.id} завершен. Спасибо за покупку.`,
@@ -601,7 +601,8 @@ app.patch("/api/orders/:id", requireAdmin, (req, res) => {
   const updated = db.prepare("SELECT * FROM orders WHERE id = ?").get(req.params.id);
   const calculationChanged = itemsPrice !== Number(existing.items_price || existing.total_price || 0) || deliveryPrice !== Number(existing.delivery_price || 0);
   if (statusMessages[status] && updated.telegram_id && (status !== existing.status || (status === "awaiting_payment" && calculationChanged))) {
-    notifyCustomer(updated.telegram_id, statusMessages[status](updated));
+    if (status === "awaiting_payment") notifyCustomerPayment(updated.telegram_id, statusMessages[status](updated));
+    else notifyCustomer(updated.telegram_id, statusMessages[status](updated));
   }
   res.json(orderWithItems(updated));
 });
