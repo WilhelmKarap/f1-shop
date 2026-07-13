@@ -46,13 +46,35 @@ function qrImagePath(value) {
   return fs.existsSync(filePath) ? filePath : "";
 }
 
-function paymentKeyboard(settings) {
+function paymentKeyboard(settings, orderId) {
   const managerUrl = normalizeTelegramUrl(settings.manager_url || settings.manager_username || process.env.MANAGER_URL);
   const paymentLink = normalizeHttpUrl(settings.payment_link);
   const keyboard = [];
   if (paymentLink) keyboard.push([{ text: "Оплатить по ссылке", url: paymentLink }]);
+  if (orderId) keyboard.push([{ text: "Подтвердить оплату", callback_data: `confirm_payment:${orderId}` }]);
   keyboard.push([{ text: "Связаться с менеджером", url: managerUrl }]);
   return { inline_keyboard: keyboard };
+}
+
+async function handlePaymentConfirmation(query) {
+  const match = String(query.data || "").match(/^confirm_payment:(\d+)$/);
+  if (!match) return;
+  const orderId = Number(match[1]);
+  const order = db.prepare("SELECT * FROM orders WHERE id = ?").get(orderId);
+  if (!order) {
+    await bot.answerCallbackQuery(query.id, { text: "Заказ не найден", show_alert: true }).catch(() => {});
+    return;
+  }
+  if (String(order.telegram_id || "") !== String(query.from?.id || "")) {
+    await bot.answerCallbackQuery(query.id, { text: "Эта кнопка относится к другому заказу", show_alert: true }).catch(() => {});
+    return;
+  }
+  if (order.status !== "awaiting_confirmation" && order.status !== "paid" && order.status !== "completed") {
+    db.prepare("UPDATE orders SET status = 'awaiting_confirmation', updated_at = datetime('now') WHERE id = ?").run(orderId);
+    const customerTelegram = order.username ? `@${String(order.username).replace(/^@/, "")}` : String(order.telegram_id || "не указан");
+    await notifyAdmin(`Клиент подтвердил оплату по заказу #${order.id}.\nПроверьте поступление денег на счет.\n\nКлиент: ${order.customer_name}\nTelegram: ${customerTelegram}\nТелефон: ${order.phone}\nТовары: ${order.items_price} ₽\nДоставка: ${order.delivery_price} ₽\nИтого: ${order.total_price} ₽`);
+  }
+  await bot.answerCallbackQuery(query.id, { text: "Спасибо. Администратор проверит оплату." }).catch(() => {});
 }
 
 function startPolling() {
@@ -74,6 +96,7 @@ function startPolling() {
       },
     });
   });
+  bot.on("callback_query", handlePaymentConfirmation);
   console.log("Telegram bot polling started.");
 }
 
@@ -99,11 +122,11 @@ async function notifyCustomer(chatId, text) {
   if (instance && chatId) await instance.sendMessage(chatId, text).catch(() => {});
 }
 
-async function notifyCustomerPayment(chatId, text) {
+async function notifyCustomerPayment(chatId, text, orderId) {
   const instance = getBot();
   if (!instance || !chatId) return;
   const settings = getSettings();
-  const reply_markup = paymentKeyboard(settings);
+  const reply_markup = paymentKeyboard(settings, orderId);
   const photo = qrImagePath(settings.qr_image);
   if (photo) {
     await instance.sendPhoto(chatId, photo, { caption: text, reply_markup }).catch(async () => {
