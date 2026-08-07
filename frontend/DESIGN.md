@@ -45,8 +45,8 @@
 
 ## Визуальная система
 
-- Display: Barlow Condensed, 600-900.
-- Body: Manrope, 400-800.
+- Display: локальный Roboto Condensed Variable, 600-900.
+- Body: локальный Manrope Variable, 400-800.
 - Graphite `#101216`, paper `#f1f0ea`, signal red `#e43126`, safety yellow `#f2c94c`, restrained cyan `#80cbd2`.
 - Радиусы 0-2 px; округлые карточки и стеклянные панели исключены.
 - Изображения пользователя всегда имеют приоритет. Для отсутствующих файлов предусмотрены три оригинальные тематические заглушки.

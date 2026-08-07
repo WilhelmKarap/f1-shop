@@ -1,3 +1,39 @@
+@font-face {
+  font-family: "F1 Display";
+  font-style: normal;
+  font-weight: 600 900;
+  font-display: swap;
+  src: url("assets/fonts/roboto-condensed-cyrillic.woff2") format("woff2");
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+
+@font-face {
+  font-family: "F1 Display";
+  font-style: normal;
+  font-weight: 600 900;
+  font-display: swap;
+  src: url("assets/fonts/roboto-condensed-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "F1 Body";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("assets/fonts/manrope-cyrillic.woff2") format("woff2");
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+
+@font-face {
+  font-family: "F1 Body";
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url("assets/fonts/manrope-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 :root {
   --ink: #101216;
   --ink-2: #191c21;
@@ -10,8 +46,8 @@
   --yellow: #f2c94c;
   --cyan: #80cbd2;
   --success: #2b8d68;
-  --display: "Barlow Condensed", Arial, sans-serif;
-  --body: "Manrope", Arial, sans-serif;
+  --display: "F1 Display", "Arial Narrow", Arial, sans-serif;
+  --body: "F1 Body", Arial, sans-serif;
   --header-height: 76px;
   color-scheme: dark;
   font-family: var(--body);
