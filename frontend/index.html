@@ -7,7 +7,15 @@
     <meta name="description" content="F1 Posters — постеры, конструкторы, одежда и авторские иллюстрации о гонках." />
     <title>F1 Posters — гоночные постеры и коллекционные вещи</title>
     <link rel="preload" href="assets/hero-pitwall.webp" as="image" type="image/webp" />
-    <link rel="stylesheet" href="storefront.css?v=20260807-3" />
+    <script>
+      (() => {
+        const context = `${location.search}${location.hash}${navigator.userAgent}`;
+        if (/tgWebAppData|Telegram/i.test(context) || window.TelegramWebviewProxy) {
+          document.documentElement.classList.add("telegram-mode");
+        }
+      })();
+    </script>
+    <link rel="stylesheet" href="storefront.css?v=20260807-4" />
     <script async src="https://telegram.org/js/telegram-web-app.js" onload="window.dispatchEvent(new Event('telegram-web-app-ready'))"></script>
   </head>
   <body>
@@ -25,41 +33,43 @@
       </button>
 
       <nav class="primary-nav" id="primaryNav" aria-label="Основная навигация">
-        <a href="#catalog">Каталог</a>
-        <a href="#catalog" data-nav-category="weekly">Скидки недели</a>
-        <a href="#delivery">Доставка</a>
-        <a class="manager-link" id="managerLink" href="https://t.me/F1posters_mng" target="_blank" rel="noreferrer">Связаться</a>
+        <a href="#catalog" data-setting="site_nav_catalog">Каталог</a>
+        <a href="#catalog" data-nav-category="weekly" data-setting="site_nav_weekly">Скидки недели</a>
+        <a href="#delivery" data-setting="site_nav_delivery">Доставка</a>
+        <a class="manager-link" id="managerLink" href="https://t.me/F1posters_mng" target="_blank" rel="noreferrer" data-setting="site_nav_contact">Связаться</a>
       </nav>
 
       <button class="header-cart" id="headerCart" type="button" aria-label="Открыть корзину">
-        <span>Пит-стоп</span>
+        <span data-setting="site_cart_label">Пит-стоп</span>
         <b id="headerCartCount">0</b>
       </button>
     </header>
 
     <main>
       <section class="hero" aria-labelledby="heroTitle">
-        <img class="hero__image" src="assets/hero-pitwall.webp" alt="Гоночный болид в пит-лейне после дождя" fetchpriority="high" />
+        <img class="hero__image" id="heroImage" src="assets/hero-pitwall.webp" alt="Гоночный болид в пит-лейне после дождя" fetchpriority="high" />
         <div class="hero__shade"></div>
         <div class="hero__grid container">
           <div class="hero__copy reveal">
-            <p class="kicker"><span>Коллекция 2026</span><span>Печать и детали</span></p>
-            <h1 id="heroTitle"><span id="shopName">F1</span><br />Posters</h1>
+            <p class="kicker"><span data-setting="site_hero_kicker_1">Коллекция 2026</span><span data-setting="site_hero_kicker_2">Печать и детали</span></p>
+            <h1 id="heroTitle"><span id="shopName" data-setting="site_hero_title_top">F1</span><br /><b data-setting="site_hero_title_bottom">Posters</b></h1>
             <p class="hero__lead" id="bannerText">Постеры, конструкторы, одежда и кастомные иллюстрации для тех, кто замечает каждую деталь гонки.</p>
             <div class="hero__actions">
-              <a class="button button--signal" href="#catalog">Выйти на старт</a>
-              <a class="text-link" href="#catalog" data-nav-category="weekly">Скидки недели <span aria-hidden="true">→</span></a>
+              <a class="button button--signal magnetic" href="#catalog" data-setting="site_hero_primary_cta">Выйти на старт</a>
+              <a class="text-link" href="#catalog" data-nav-category="weekly"><span data-setting="site_hero_weekly_cta">Скидки недели</span> <i aria-hidden="true">→</i></a>
             </div>
           </div>
 
           <div class="hero__telemetry" aria-label="Информация о магазине">
-            <div><span>Товары</span><strong id="heroProductCount">--</strong></div>
-            <div><span>Категории</span><strong id="heroCategoryCount">--</strong></div>
-            <div><span>Доставка</span><strong>ПВЗ</strong></div>
+            <div><span data-setting="site_metric_products">Товары</span><strong id="heroProductCount">--</strong></div>
+            <div><span data-setting="site_metric_categories">Категории</span><strong id="heroCategoryCount">--</strong></div>
+            <div><span data-setting="site_metric_delivery">Доставка</span><strong data-setting="site_metric_delivery_value">ПВЗ</strong></div>
           </div>
         </div>
         <a class="hero__scroll" href="#catalog"><span>Следующий сектор</span><i aria-hidden="true"></i></a>
       </section>
+
+      <div class="motion-progress" aria-hidden="true"><span></span></div>
 
       <nav class="sector-rail" aria-label="Разделы страницы">
         <a class="active" href="#catalog" data-sector="catalog"><span>S1</span><b>Каталог</b></a>
@@ -68,31 +78,27 @@
       </nav>
 
       <section class="catalog-section" id="catalog" aria-labelledby="catalogTitle">
-        <div class="container catalog-heading reveal">
-          <div class="section-index"><span>S1</span><i></i><span>01</span></div>
-          <div>
-            <p class="kicker kicker--dark">Управляемый ассортимент</p>
-            <h2 id="catalogTitle">Стартовая решётка</h2>
-          </div>
-          <p>Выберите направление, найдите нужный сюжет и соберите свой заказ. Все позиции и цены синхронизированы с админ-панелью.</p>
-        </div>
-
-        <div class="catalog-controls container reveal">
+        <h2 class="sr-only" id="catalogTitle">Каталог</h2>
+        <div class="catalog-controls container">
           <div class="category-tabs" id="tabs" role="tablist" aria-label="Категории товаров"></div>
+
+          <div class="telegram-filters" aria-label="Фильтры каталога">
+            <label><span data-setting="site_mobile_category_label">Категория</span><select id="telegramCategorySelect"></select></label>
+            <label id="telegramSubcategoryField"><span data-setting="site_mobile_subcategory_label">Подкатегория</span><select id="telegramSubcategorySelect"></select></label>
+          </div>
 
           <div class="filter-line">
             <label class="search-field">
-              <span class="sr-only">Поиск по каталогу</span>
-              <input id="searchInput" type="search" placeholder="Название, команда или пилот" autocomplete="off" />
-              <span aria-hidden="true">Найти</span>
+              <span class="control-label" data-setting="site_search_label">Поиск</span>
+              <input id="searchInput" type="search" placeholder="Название, команда или пилот" data-setting-placeholder="site_search_placeholder" autocomplete="off" />
             </label>
             <label class="sort-field">
-              <span>Порядок</span>
+              <span class="control-label" data-setting="site_sort_label">Порядок</span>
               <select id="sortSelect">
-                <option value="default">По умолчанию</option>
-                <option value="price-asc">Сначала дешевле</option>
-                <option value="price-desc">Сначала дороже</option>
-                <option value="name">По названию</option>
+                <option value="default" data-setting="site_sort_default">По умолчанию</option>
+                <option value="price-asc" data-setting="site_sort_price_asc">Сначала дешевле</option>
+                <option value="price-desc" data-setting="site_sort_price_desc">Сначала дороже</option>
+                <option value="name" data-setting="site_sort_name">По названию</option>
               </select>
             </label>
           </div>
@@ -110,42 +116,42 @@
         <div class="delivery-band__flag" aria-hidden="true"></div>
         <div class="container delivery-layout">
           <div class="section-index section-index--light"><span>S2</span><i></i><span>02</span></div>
-          <div class="delivery-title reveal">
-            <p class="kicker">От корзины до получения</p>
-            <h2 id="deliveryTitle">Спокойный круг после финиша.</h2>
+          <div class="delivery-title reveal reveal--clip">
+            <p class="kicker" data-setting="site_delivery_kicker">От корзины до получения</p>
+            <h2 id="deliveryTitle" data-setting="site_delivery_title">Спокойный круг после финиша.</h2>
           </div>
           <div class="delivery-steps">
             <article class="reveal">
               <span>01</span>
-              <h3>Оформите заказ</h3>
-              <p>Укажите телефон, службу выдачи и точный адрес выбранного ПВЗ.</p>
+              <h3 data-setting="site_delivery_step1_title">Оформите заказ</h3>
+              <p data-setting="site_delivery_step1_text">Укажите телефон, службу выдачи и точный адрес выбранного ПВЗ.</p>
             </article>
             <article class="reveal">
               <span>02</span>
-              <h3>Получите расчёт</h3>
-              <p>Администратор отдельно рассчитает товары и доставку, затем свяжется с вами.</p>
+              <h3 data-setting="site_delivery_step2_title">Получите расчёт</h3>
+              <p data-setting="site_delivery_step2_text">Администратор отдельно рассчитает товары и доставку, затем свяжется с вами.</p>
             </article>
             <article class="reveal">
               <span>03</span>
-              <h3>Подтвердите оплату</h3>
-              <p>Оплата доступна по QR-коду или ссылке после подтверждения состава заказа.</p>
+              <h3 data-setting="site_delivery_step3_title">Подтвердите оплату</h3>
+              <p data-setting="site_delivery_step3_text">Оплата доступна по QR-коду или ссылке после подтверждения состава заказа.</p>
             </article>
           </div>
           <div class="delivery-note">
-            <span>Маршрут</span>
+            <span data-setting="site_delivery_route_label">Маршрут</span>
             <strong id="deliveryText">Пункты выдачи Озон и Яндекс Маркет по России</strong>
           </div>
         </div>
       </section>
 
       <section class="finish-section">
-        <div class="container finish-layout reveal">
+        <div class="container finish-layout reveal reveal--clip">
           <p class="finish-number" aria-hidden="true">F1</p>
           <div>
-            <p class="kicker kicker--dark">Не нашли нужный сюжет?</p>
-            <h2>Соберём постер под вашу идею.</h2>
+            <p class="kicker kicker--dark" data-setting="site_finish_kicker">Не нашли нужный сюжет?</p>
+            <h2 data-setting="site_finish_title">Соберём постер под вашу идею.</h2>
           </div>
-          <a class="button button--dark" id="customManagerLink" href="https://t.me/F1posters_mng" target="_blank" rel="noreferrer">Обсудить с менеджером</a>
+          <a class="button button--dark magnetic" id="customManagerLink" href="https://t.me/F1posters_mng" target="_blank" rel="noreferrer" data-setting="site_finish_button">Обсудить с менеджером</a>
         </div>
       </section>
     </main>
@@ -153,11 +159,11 @@
     <footer class="site-footer">
       <div class="container footer-layout">
         <div class="brand brand--footer"><span class="brand__mark">F1</span><span class="brand__name">Posters</span></div>
-        <p>Постеры, конструкторы и авторские работы о скорости.</p>
+        <p data-setting="site_footer_tagline">Постеры, конструкторы и авторские работы о скорости.</p>
         <nav aria-label="Навигация в подвале">
-          <a href="#catalog">Каталог</a>
-          <a id="footerManagerLink" href="https://t.me/F1posters_mng" target="_blank" rel="noreferrer">Менеджер</a>
-          <a href="admin.html">Управление</a>
+          <a href="#catalog" data-setting="site_nav_catalog">Каталог</a>
+          <a id="footerManagerLink" href="https://t.me/F1posters_mng" target="_blank" rel="noreferrer" data-setting="site_footer_manager">Менеджер</a>
+          <a href="admin.html" data-setting="site_footer_admin">Управление</a>
         </nav>
         <span>© <span id="year"></span> F1 Posters</span>
       </div>
@@ -166,21 +172,21 @@
     <div class="drawer-backdrop" id="drawerBackdrop"></div>
     <aside class="cart-drawer" id="cartDrawer" aria-hidden="true" aria-labelledby="cartTitle">
       <header>
-        <div><span class="kicker kicker--dark">S3 / Пит-стоп</span><h2 id="cartTitle">Корзина</h2></div>
+        <div><span class="kicker kicker--dark">S3 / Пит-стоп</span><h2 id="cartTitle" data-setting="site_cart_title">Корзина</h2></div>
         <button class="close-button" id="closeCart" type="button" aria-label="Закрыть корзину">×</button>
       </header>
       <div class="cart-items" id="cartItems"></div>
       <footer>
-        <div class="cart-summary"><span>Товары</span><strong id="cartSheetTotal">0 ₽</strong></div>
-        <p>Стоимость доставки администратор рассчитает отдельно.</p>
-        <button class="button button--signal button--wide" id="checkout" type="button">Оформить заказ</button>
+        <div class="cart-summary"><span data-setting="site_cart_total_label">Товары</span><strong id="cartSheetTotal">0 ₽</strong></div>
+        <p data-setting="site_cart_delivery_note">Стоимость доставки администратор рассчитает отдельно.</p>
+        <button class="button button--signal button--wide" id="checkout" type="button" data-setting="site_checkout_button">Оформить заказ</button>
       </footer>
     </aside>
 
     <div class="mobile-cart" id="mobileCart">
       <button id="mobileCartButton" type="button">
         <span><small id="cartCount">0 товаров</small><strong id="cartTotal">0 ₽</strong></span>
-        <b>Корзина</b>
+        <b data-setting="site_cart_title">Корзина</b>
       </button>
     </div>
 
@@ -193,7 +199,7 @@
         <p class="product-description" id="productDescription"></p>
         <div class="product-dialog__footer">
           <div class="price-row"><strong id="productPrice"></strong><s id="productOldPrice"></s></div>
-          <button class="button button--signal" id="addToCart" type="button">Добавить в корзину</button>
+          <button class="button button--signal" id="addToCart" type="button" data-setting="site_add_to_cart">Добавить в корзину</button>
         </div>
       </div>
     </dialog>
@@ -201,39 +207,39 @@
     <dialog class="checkout-dialog" id="checkoutDialog">
       <button class="close-button dialog-close" data-dialog-close="checkoutDialog" type="button" aria-label="Закрыть оформление заказа">×</button>
       <div class="checkout-heading">
-        <p class="kicker kicker--dark">Финальный сектор</p>
-        <h2>Оформление заказа</h2>
-        <p>После отправки администратор рассчитает стоимость доставки и свяжется с вами.</p>
+        <p class="kicker kicker--dark" data-setting="site_checkout_kicker">Финальный сектор</p>
+        <h2 data-setting="site_checkout_title">Оформление заказа</h2>
+        <p data-setting="site_checkout_intro">После отправки администратор рассчитает стоимость доставки и свяжется с вами.</p>
       </div>
       <form id="checkoutForm">
-        <label class="field"><span>ФИО</span><input name="customer_name" autocomplete="name" required /></label>
-        <label class="field"><span>Телефон</span><input name="phone" type="tel" autocomplete="tel" placeholder="+7 999 000-00-00" required /></label>
-        <label class="field"><span>Telegram для связи <small>необязательно</small></span><input name="username" autocomplete="off" placeholder="@username" /></label>
-        <label class="field"><span>Пункт выдачи</span>
+        <label class="field"><span data-setting="site_field_name">ФИО</span><input name="customer_name" autocomplete="name" required /></label>
+        <label class="field"><span data-setting="site_field_phone">Телефон</span><input name="phone" type="tel" autocomplete="tel" placeholder="+7 999 000-00-00" required /></label>
+        <label class="field"><span><b data-setting="site_field_telegram">Telegram для связи</b> <small data-setting="site_optional_label">необязательно</small></span><input name="username" autocomplete="off" placeholder="@username" /></label>
+        <label class="field"><span data-setting="site_field_provider">Пункт выдачи</span>
           <select name="delivery_provider" required>
-            <option value="">Выберите службу</option>
-            <option value="ozon">Озон</option>
-            <option value="yandex_market">Яндекс Маркет</option>
+            <option value="" data-setting="site_provider_placeholder">Выберите службу</option>
+            <option value="ozon" data-setting="site_provider_ozon">Озон</option>
+            <option value="yandex_market" data-setting="site_provider_yandex">Яндекс Маркет</option>
           </select>
         </label>
-        <label class="field field--wide"><span>Адрес ПВЗ Озон/Яндекс Маркет</span><input name="address" autocomplete="street-address" required /></label>
-        <label class="field field--wide"><span>Комментарий <small>необязательно</small></span><textarea name="comment" rows="4"></textarea></label>
-        <div class="checkout-total field--wide"><span>Товары</span><strong id="checkoutTotal">0 ₽</strong><small>Доставка будет рассчитана отдельно</small></div>
-        <button class="button button--signal field--wide" type="submit">Отправить заказ</button>
+        <label class="field field--wide"><span data-setting="site_field_address">Адрес ПВЗ Озон/Яндекс Маркет</span><input name="address" autocomplete="street-address" required /></label>
+        <label class="field field--wide"><span><b data-setting="site_field_comment">Комментарий</b> <small data-setting="site_optional_label">необязательно</small></span><textarea name="comment" rows="4"></textarea></label>
+        <div class="checkout-total field--wide"><span data-setting="site_cart_total_label">Товары</span><strong id="checkoutTotal">0 ₽</strong><small data-setting="site_checkout_delivery_note">Доставка будет рассчитана отдельно</small></div>
+        <button class="button button--signal field--wide" id="submitOrderButton" type="submit" data-setting="site_submit_order">Отправить заказ</button>
       </form>
     </dialog>
 
     <dialog class="success-dialog" id="successDialog">
       <button class="close-button dialog-close" data-dialog-close="successDialog" type="button" aria-label="Закрыть сообщение">×</button>
-      <span class="success-dialog__index">Финиш</span>
-      <h2>Заказ принят</h2>
+      <span class="success-dialog__index" data-setting="site_success_kicker">Финиш</span>
+      <h2 data-setting="site_success_title">Заказ принят</h2>
       <p id="orderSuccessText"></p>
-      <button class="button button--dark" data-dialog-close="successDialog" type="button">Вернуться в каталог</button>
+      <button class="button button--dark" data-dialog-close="successDialog" type="button" data-setting="site_success_button">Вернуться в каталог</button>
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
     <script defer src="config.js?v=20260807-1"></script>
-    <script defer src="app.js?v=20260807-1"></script>
+    <script defer src="app.js?v=20260807-4"></script>
   </body>
 </html>

@@ -91,6 +91,14 @@ td button { margin-right: 6px; min-height: 32px; border: 1px solid var(--border)
 .status { display: inline-block; padding: 4px 9px; border-radius: 999px; background: var(--panel-2); color: var(--text); }
 .modal-form { max-width: 620px; margin: auto; border-radius: var(--radius); }
 .check { display: block; margin: 8px 0; color: var(--text); }
+.content-form { display: grid; gap: 14px; max-width: 1060px; }
+.content-group { border: 1px solid var(--border); border-radius: 10px; background: var(--panel); overflow: hidden; }
+.content-group summary { padding: 16px 18px; color: var(--text); font-size: 15px; font-weight: 900; cursor: pointer; user-select: none; }
+.content-group[open] summary { border-bottom: 1px solid var(--border); }
+.content-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 18px; padding: 18px; }
+.content-grid .field { min-width: 0; }
+.content-grid .field-full { grid-column: 1 / -1; }
+.content-savebar { position: sticky; z-index: 4; bottom: 12px; display: flex; justify-content: flex-end; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: rgba(23, 26, 33, .94); backdrop-filter: blur(10px); }
 @media (max-width: 760px) {
   .admin-layout { display: block; }
   .sidebar { width: 100%; display: flex; overflow-x: auto; padding: 8px; }
@@ -98,4 +106,6 @@ td button { margin-right: 6px; min-height: 32px; border: 1px solid var(--border)
   .nav { width: auto; flex: none; padding: 0 12px; }
   .admin-main { padding: 14px; }
   .stat-grid { grid-template-columns: 1fr 1fr; }
+  .content-grid { grid-template-columns: 1fr; padding: 14px; }
+  .content-grid .field-full { grid-column: 1; }
 }

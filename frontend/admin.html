@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>CMS F1 Constructor Shop</title>
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=20260807-4" />
   </head>
   <body>
     <section class="login-screen" id="loginScreen">
@@ -29,6 +29,7 @@
         <button class="nav" data-page="orders">Заказы</button>
         <button class="nav" data-page="weekly">Скидки недели</button>
         <button class="nav" data-page="banners">Баннеры</button>
+        <button class="nav" data-page="content">Тексты сайта</button>
         <button class="nav" data-page="settings">Настройки</button>
         <button class="nav" id="logout">Выйти</button>
       </aside>
@@ -74,9 +75,121 @@
         <section class="page hidden" id="page-banners">
           <form class="panel" id="bannersForm">
             <label class="field">Текст баннера<input name="banner_text" /></label>
-            <label class="field">Баннер<input type="file" data-upload="banners" data-target="banner_image" /><input name="banner_image" /></label>
+            <label class="field">Баннер Telegram-бота<input type="file" accept="image/*" data-upload="banners" data-target="banner_image" /><input name="banner_image" /></label>
+            <label class="field">Главный фон полной версии сайта<input type="file" accept="image/*" data-upload="banners" data-target="web_hero_image" /><input name="web_hero_image" /></label>
+            <label class="field">Главный фон версии внутри Telegram<input type="file" accept="image/*" data-upload="banners" data-target="telegram_hero_image" /><input name="telegram_hero_image" /></label>
+            <label class="field">Фон раздела доставки<input type="file" accept="image/*" data-upload="banners" data-target="delivery_background_image" /><input name="delivery_background_image" /></label>
+            <label class="field">Фон заключительного блока<input type="file" accept="image/*" data-upload="banners" data-target="finish_background_image" /><input name="finish_background_image" /></label>
             <label class="field">Логотип<input type="file" data-upload="logo" data-target="logo_image" /><input name="logo_image" /></label>
             <button class="btn btn-primary">Сохранить</button>
+          </form>
+        </section>
+
+        <section class="page hidden" id="page-content">
+          <form class="content-form" id="contentForm">
+            <details class="content-group" open>
+              <summary>Навигация и первый экран</summary>
+              <div class="content-grid">
+                <label class="field">Каталог<input name="site_nav_catalog" /></label>
+                <label class="field">Скидки недели<input name="site_nav_weekly" /></label>
+                <label class="field">Доставка<input name="site_nav_delivery" /></label>
+                <label class="field">Связаться<input name="site_nav_contact" /></label>
+                <label class="field">Название корзины<input name="site_cart_label" /></label>
+                <label class="field">Первая отметка<input name="site_hero_kicker_1" /></label>
+                <label class="field">Вторая отметка<input name="site_hero_kicker_2" /></label>
+                <label class="field">Первая строка заголовка<input name="site_hero_title_top" /></label>
+                <label class="field">Вторая строка заголовка<input name="site_hero_title_bottom" /></label>
+                <label class="field field-full">Описание на первом экране<textarea name="site_hero_text"></textarea></label>
+                <label class="field">Главная кнопка<input name="site_hero_primary_cta" /></label>
+                <label class="field">Кнопка скидок<input name="site_hero_weekly_cta" /></label>
+                <label class="field">Подпись количества товаров<input name="site_metric_products" /></label>
+                <label class="field">Подпись категорий<input name="site_metric_categories" /></label>
+                <label class="field">Подпись доставки<input name="site_metric_delivery" /></label>
+                <label class="field">Значение доставки<input name="site_metric_delivery_value" /></label>
+              </div>
+            </details>
+
+            <details class="content-group" open>
+              <summary>Каталог и карточки</summary>
+              <div class="content-grid">
+                <label class="field">Вкладка скидок<input name="site_weekly_category" /></label>
+                <label class="field">Вкладка всех товаров<input name="site_all_category" /></label>
+                <label class="field">Подпись поиска<input name="site_search_label" /></label>
+                <label class="field">Подсказка поиска<input name="site_search_placeholder" /></label>
+                <label class="field">Категория в Telegram<input name="site_mobile_category_label" /></label>
+                <label class="field">Подкатегория в Telegram<input name="site_mobile_subcategory_label" /></label>
+                <label class="field">Подпись сортировки<input name="site_sort_label" /></label>
+                <label class="field">По умолчанию<input name="site_sort_default" /></label>
+                <label class="field">Сначала дешевле<input name="site_sort_price_asc" /></label>
+                <label class="field">Сначала дороже<input name="site_sort_price_desc" /></label>
+                <label class="field">По названию<input name="site_sort_name" /></label>
+                <label class="field">Все подкатегории<input name="site_all_subcategory" /></label>
+                <label class="field">Знак скидки<input name="site_discount_badge" /></label>
+                <label class="field">Добавить в корзину<input name="site_add_to_cart" /></label>
+                <label class="field">Пустой каталог, заголовок<input name="site_empty_title" /></label>
+                <label class="field field-full">Пустой каталог, пояснение<input name="site_empty_text" /></label>
+              </div>
+            </details>
+
+            <details class="content-group">
+              <summary>Доставка и заключительный блок</summary>
+              <div class="content-grid">
+                <label class="field">Метка доставки<input name="site_delivery_kicker" /></label>
+                <label class="field">Заголовок доставки<input name="site_delivery_title" /></label>
+                <label class="field">Шаг 1, заголовок<input name="site_delivery_step1_title" /></label>
+                <label class="field field-full">Шаг 1, описание<textarea name="site_delivery_step1_text"></textarea></label>
+                <label class="field">Шаг 2, заголовок<input name="site_delivery_step2_title" /></label>
+                <label class="field field-full">Шаг 2, описание<textarea name="site_delivery_step2_text"></textarea></label>
+                <label class="field">Шаг 3, заголовок<input name="site_delivery_step3_title" /></label>
+                <label class="field field-full">Шаг 3, описание<textarea name="site_delivery_step3_text"></textarea></label>
+                <label class="field">Подпись маршрута<input name="site_delivery_route_label" /></label>
+                <label class="field">Метка финального блока<input name="site_finish_kicker" /></label>
+                <label class="field">Заголовок финального блока<input name="site_finish_title" /></label>
+                <label class="field">Кнопка менеджера<input name="site_finish_button" /></label>
+              </div>
+            </details>
+
+            <details class="content-group">
+              <summary>Корзина и оформление заказа</summary>
+              <div class="content-grid">
+                <label class="field">Заголовок корзины<input name="site_cart_title" /></label>
+                <label class="field">Пустая корзина<input name="site_cart_empty_title" /></label>
+                <label class="field">Подсказка пустой корзины<input name="site_cart_empty_text" /></label>
+                <label class="field">Подпись суммы<input name="site_cart_total_label" /></label>
+                <label class="field field-full">Пояснение о доставке<textarea name="site_cart_delivery_note"></textarea></label>
+                <label class="field">Короткая подпись доставки<input name="site_checkout_delivery_note" /></label>
+                <label class="field">Кнопка оформления<input name="site_checkout_button" /></label>
+                <label class="field">Метка оформления<input name="site_checkout_kicker" /></label>
+                <label class="field">Заголовок оформления<input name="site_checkout_title" /></label>
+                <label class="field field-full">Пояснение при оформлении<textarea name="site_checkout_intro"></textarea></label>
+                <label class="field">ФИО<input name="site_field_name" /></label>
+                <label class="field">Телефон<input name="site_field_phone" /></label>
+                <label class="field">Telegram<input name="site_field_telegram" /></label>
+                <label class="field">Пункт выдачи<input name="site_field_provider" /></label>
+                <label class="field">Адрес ПВЗ<input name="site_field_address" /></label>
+                <label class="field">Комментарий<input name="site_field_comment" /></label>
+                <label class="field">Необязательное поле<input name="site_optional_label" /></label>
+                <label class="field">Подсказка выбора службы<input name="site_provider_placeholder" /></label>
+                <label class="field">Название Озон<input name="site_provider_ozon" /></label>
+                <label class="field">Название Яндекс Маркет<input name="site_provider_yandex" /></label>
+                <label class="field">Кнопка отправки<input name="site_submit_order" /></label>
+              </div>
+            </details>
+
+            <details class="content-group">
+              <summary>Сообщение после заказа и подвал</summary>
+              <div class="content-grid">
+                <label class="field">Метка успешного заказа<input name="site_success_kicker" /></label>
+                <label class="field">Заголовок успешного заказа<input name="site_success_title" /></label>
+                <label class="field field-full">Текст успешного заказа, {id} заменится номером<textarea name="site_success_text"></textarea></label>
+                <label class="field">Кнопка возврата<input name="site_success_button" /></label>
+                <label class="field field-full">Описание в подвале<textarea name="site_footer_tagline"></textarea></label>
+                <label class="field">Менеджер в подвале<input name="site_footer_manager" /></label>
+                <label class="field">Управление в подвале<input name="site_footer_admin" /></label>
+              </div>
+            </details>
+
+            <div class="content-savebar"><button class="btn btn-primary">Сохранить тексты сайта</button></div>
           </form>
         </section>
 
@@ -159,6 +272,6 @@
     </form></div>
 
     <script src="config.js?v=20260807-1"></script>
-    <script src="admin.js?v=20260807-1"></script>
+    <script src="admin.js?v=20260807-4"></script>
   </body>
 </html>

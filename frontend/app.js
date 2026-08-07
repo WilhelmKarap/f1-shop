@@ -3,12 +3,14 @@ let tg = null;
 
 function connectTelegram() {
   const webApp = window.Telegram?.WebApp;
-  if (!webApp || tg === webApp) return;
+  const telegramContext = document.documentElement.classList.contains("telegram-mode") || Boolean(webApp?.initData) || Boolean(window.TelegramWebviewProxy);
+  if (!webApp || !telegramContext || tg === webApp) return;
   tg = webApp;
+  document.documentElement.classList.add("telegram-mode");
   tg.ready();
   tg.expand();
-  tg.setHeaderColor?.("#101216");
-  tg.setBackgroundColor?.("#101216");
+  tg.setHeaderColor?.("#07111f");
+  tg.setBackgroundColor?.("#07111f");
 }
 
 window.addEventListener("telegram-web-app-ready", connectTelegram);
@@ -30,6 +32,81 @@ let currentProduct = null;
 let cart = [];
 let toastTimer = null;
 
+const DEFAULT_COPY = {
+  site_nav_catalog: "Каталог",
+  site_nav_weekly: "Скидки недели",
+  site_nav_delivery: "Доставка",
+  site_nav_contact: "Связаться",
+  site_cart_label: "Пит-стоп",
+  site_hero_kicker_1: "Коллекция 2026",
+  site_hero_kicker_2: "Печать и детали",
+  site_hero_title_top: "F1",
+  site_hero_title_bottom: "Posters",
+  site_hero_text: "Постеры, конструкторы, одежда и кастомные иллюстрации для тех, кто замечает каждую деталь гонки.",
+  site_hero_primary_cta: "Выйти на старт",
+  site_hero_weekly_cta: "Скидки недели",
+  site_metric_products: "Товары",
+  site_metric_categories: "Категории",
+  site_metric_delivery: "Доставка",
+  site_metric_delivery_value: "ПВЗ",
+  site_weekly_category: "Скидки недели",
+  site_all_category: "Все товары",
+  site_search_label: "Поиск",
+  site_search_placeholder: "Название, команда или пилот",
+  site_mobile_category_label: "Категория",
+  site_mobile_subcategory_label: "Подкатегория",
+  site_sort_label: "Порядок",
+  site_sort_default: "По умолчанию",
+  site_sort_price_asc: "Сначала дешевле",
+  site_sort_price_desc: "Сначала дороже",
+  site_sort_name: "По названию",
+  site_all_subcategory: "Все",
+  site_discount_badge: "Скидка недели",
+  site_add_to_cart: "Добавить в корзину",
+  site_empty_title: "В этом секторе пока нет товаров",
+  site_empty_text: "Попробуйте другую категорию или измените запрос",
+  site_delivery_kicker: "От корзины до получения",
+  site_delivery_title: "Спокойный круг после финиша.",
+  site_delivery_step1_title: "Оформите заказ",
+  site_delivery_step1_text: "Укажите телефон, службу выдачи и точный адрес выбранного ПВЗ.",
+  site_delivery_step2_title: "Получите расчёт",
+  site_delivery_step2_text: "Администратор отдельно рассчитает товары и доставку, затем свяжется с вами.",
+  site_delivery_step3_title: "Подтвердите оплату",
+  site_delivery_step3_text: "Оплата доступна по QR-коду или ссылке после подтверждения состава заказа.",
+  site_delivery_route_label: "Маршрут",
+  site_finish_kicker: "Не нашли нужный сюжет?",
+  site_finish_title: "Соберём постер под вашу идею.",
+  site_finish_button: "Обсудить с менеджером",
+  site_cart_title: "Корзина",
+  site_cart_empty_title: "Корзина пуста",
+  site_cart_empty_text: "Добавьте товары из каталога",
+  site_cart_total_label: "Товары",
+  site_cart_delivery_note: "Стоимость доставки администратор рассчитает отдельно.",
+  site_checkout_delivery_note: "Доставка будет рассчитана отдельно",
+  site_checkout_button: "Оформить заказ",
+  site_checkout_kicker: "Финальный сектор",
+  site_checkout_title: "Оформление заказа",
+  site_checkout_intro: "После отправки администратор рассчитает стоимость доставки и свяжется с вами.",
+  site_field_name: "ФИО",
+  site_field_phone: "Телефон",
+  site_field_telegram: "Telegram для связи",
+  site_field_provider: "Пункт выдачи",
+  site_field_address: "Адрес ПВЗ Озон/Яндекс Маркет",
+  site_field_comment: "Комментарий",
+  site_optional_label: "необязательно",
+  site_provider_placeholder: "Выберите службу",
+  site_provider_ozon: "Озон",
+  site_provider_yandex: "Яндекс Маркет",
+  site_submit_order: "Отправить заказ",
+  site_success_kicker: "Финиш",
+  site_success_title: "Заказ принят",
+  site_success_text: "Спасибо за покупку. Заказ #{id} отправлен администратору. Он отдельно рассчитает стоимость товаров и доставки, затем свяжется с вами по указанным контактам.",
+  site_success_button: "Вернуться в каталог",
+  site_footer_tagline: "Постеры, конструкторы и авторские работы о скорости.",
+  site_footer_manager: "Менеджер",
+  site_footer_admin: "Управление",
+};
+
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const money = (value) => `${new Intl.NumberFormat("ru-RU").format(Number(value) || 0)} ₽`;
@@ -50,6 +127,11 @@ function cleanCopy(value = "") {
     .replace(/[ \t]+\n/g, "\n")
     .replace(/[ \t]{2,}/g, " ")
     .trim();
+}
+
+function siteCopy(key) {
+  const legacyValue = key === "site_hero_text" ? settings.banner_text : "";
+  return cleanCopy(settings[key] || legacyValue || DEFAULT_COPY[key] || "");
 }
 
 function asset(url) {
@@ -146,13 +228,30 @@ async function init() {
 
 function renderSettings() {
   const shopName = cleanCopy(settings.shop_name || "F1 Posters");
-  const firstWord = shopName.split(/\s+/)[0] || "F1";
-  $("#shopName").textContent = firstWord;
-  $("#bannerText").textContent = cleanCopy(settings.banner_text) || "Постеры, конструкторы, одежда и кастомные иллюстрации для тех, кто замечает каждую деталь гонки.";
+  $$('[data-setting]').forEach((element) => {
+    const value = siteCopy(element.dataset.setting);
+    if (value) element.textContent = value;
+  });
+  $$('[data-setting-placeholder]').forEach((element) => {
+    const value = siteCopy(element.dataset.settingPlaceholder);
+    if (value) element.placeholder = value;
+  });
+  $("#bannerText").textContent = siteCopy("site_hero_text");
   $("#deliveryText").textContent = cleanCopy(settings.delivery_text) || "Пункты выдачи Озон и Яндекс Маркет по России";
   $("#heroProductCount").textContent = String(products.length).padStart(2, "0");
   $("#heroCategoryCount").textContent = String(categories.length).padStart(2, "0");
   document.title = `${shopName} — гоночные постеры и коллекционные вещи`;
+
+  const telegramMode = document.documentElement.classList.contains("telegram-mode");
+  const heroSetting = telegramMode
+    ? settings.telegram_hero_image || settings.banner_image || settings.web_hero_image
+    : settings.web_hero_image || settings.banner_image;
+  if (heroSetting) $("#heroImage").src = asset(heroSetting);
+
+  const deliveryBackground = asset(settings.delivery_background_image);
+  const finishBackground = asset(settings.finish_background_image);
+  document.documentElement.style.setProperty("--delivery-background-image", deliveryBackground ? `url(${JSON.stringify(deliveryBackground)})` : "none");
+  document.documentElement.style.setProperty("--finish-background-image", finishBackground ? `url(${JSON.stringify(finishBackground)})` : "none");
 
   const managerUrl = normalizeManagerUrl();
   ["managerLink", "customManagerLink", "footerManagerLink"].forEach((id) => {
@@ -166,15 +265,15 @@ function categoryLabel(categoryId) {
 }
 
 function activeCollectionLabel() {
-  if (currentCategory === "weekly") return "Скидки недели";
-  if (currentCategory === "all") return "Весь каталог";
+  if (currentCategory === "weekly") return siteCopy("site_weekly_category");
+  if (currentCategory === "all") return siteCopy("site_all_category");
   return categoryLabel(currentCategory);
 }
 
 function renderTabs() {
   const tabs = [
-    { id: "weekly", name: "Скидки недели" },
-    { id: "all", name: "Все товары" },
+    { id: "weekly", name: siteCopy("site_weekly_category") },
+    { id: "all", name: siteCopy("site_all_category") },
     ...categories.map((category) => ({ id: category.id, name: cleanCopy(category.name) })),
   ];
 
@@ -184,6 +283,10 @@ function renderTabs() {
       ${escapeHtml(tab.name)}
     </button>
   `).join("");
+
+  $("#telegramCategorySelect").innerHTML = tabs.map((tab) => `
+    <option value="${escapeHtml(tab.id)}" ${String(tab.id) === String(currentCategory) ? "selected" : ""}>${escapeHtml(tab.name)}</option>
+  `).join("");
 }
 
 function renderSubtabs() {
@@ -191,11 +294,20 @@ function renderSubtabs() {
   const visible = subcategories.filter((subcategory) => String(subcategory.category_id) === String(currentCategory));
   element.classList.toggle("hidden", currentCategory === "weekly" || currentCategory === "all" || visible.length === 0);
   element.innerHTML = [
-    `<button class="subcategory-tab ${currentSubcategory === "all" ? "active" : ""}" type="button" data-subcategory="all">Все</button>`,
+    `<button class="subcategory-tab ${currentSubcategory === "all" ? "active" : ""}" type="button" data-subcategory="all">${escapeHtml(siteCopy("site_all_subcategory"))}</button>`,
     ...visible.map((subcategory) => `
       <button class="subcategory-tab ${String(subcategory.id) === String(currentSubcategory) ? "active" : ""}"
         type="button" data-subcategory="${subcategory.id}">${escapeHtml(cleanCopy(subcategory.name))}</button>
     `),
+  ].join("");
+
+  const telegramField = $("#telegramSubcategoryField");
+  const hasSubcategories = currentCategory !== "weekly" && currentCategory !== "all" && visible.length > 0;
+  telegramField.classList.toggle("hidden", !hasSubcategories);
+  $(".telegram-filters").classList.toggle("has-subcategories", hasSubcategories);
+  $("#telegramSubcategorySelect").innerHTML = [
+    `<option value="all">${escapeHtml(siteCopy("site_all_subcategory"))}</option>`,
+    ...visible.map((subcategory) => `<option value="${subcategory.id}" ${String(subcategory.id) === String(currentSubcategory) ? "selected" : ""}>${escapeHtml(cleanCopy(subcategory.name))}</option>`),
   ].join("");
 }
 
@@ -227,24 +339,24 @@ function renderProducts() {
     const title = cleanCopy(product.title);
     const fallback = fallbackFor(product);
     return `
-      <article class="product-card reveal">
+      <article class="product-card reveal reveal--clip" style="--reveal-delay:${Math.min(index, 7) * 45}ms">
         <button class="product-card__media" type="button" data-product="${product.id}" aria-label="Открыть ${escapeHtml(title)}">
           <span class="product-card__lap">P${String(index + 1).padStart(2, "0")}</span>
-          ${product.is_weekly_discount ? `<span class="discount-flag">Скидка недели</span>` : ""}
+          ${product.is_weekly_discount ? `<span class="discount-flag">${escapeHtml(siteCopy("site_discount_badge"))}</span>` : ""}
           <img src="${escapeHtml(productImage(product))}" data-fallback="${fallback}" alt="${escapeHtml(title)}" loading="lazy" />
         </button>
         <div class="product-card__body">
           <p class="product-card__category">${escapeHtml(categoryLabel(product.category_id))}</p>
           <h3>${escapeHtml(title)}</h3>
-          <button class="product-card__buy" type="button" data-add-product="${product.id}" aria-label="Добавить ${escapeHtml(title)} в корзину" title="Добавить в корзину">+</button>
+          <button class="product-card__buy" type="button" data-add-product="${product.id}" aria-label="${escapeHtml(siteCopy("site_add_to_cart"))}: ${escapeHtml(title)}" title="${escapeHtml(siteCopy("site_add_to_cart"))}">+</button>
           <div class="price-row"><strong>${money(product.price)}</strong>${product.old_price ? `<s>${money(product.old_price)}</s>` : ""}</div>
         </div>
       </article>
     `;
   }).join("") || `
     <div class="empty-state">
-      <strong>В этом секторе пока нет товаров</strong>
-      <span>Попробуйте другую категорию или измените запрос</span>
+      <strong>${escapeHtml(siteCopy("site_empty_title"))}</strong>
+      <span>${escapeHtml(siteCopy("site_empty_text"))}</span>
     </div>
   `;
 
@@ -318,7 +430,7 @@ function renderCart() {
         </div>
       </article>
     `;
-  }).join("") || `<div class="empty-state"><strong>Корзина пуста</strong><span>Добавьте товары из каталога</span></div>`;
+  }).join("") || `<div class="empty-state"><strong>${escapeHtml(siteCopy("site_cart_empty_title"))}</strong><span>${escapeHtml(siteCopy("site_cart_empty_text"))}</span></div>`;
 }
 
 function openCart() {
@@ -397,6 +509,52 @@ function initSectorNavigation() {
   [$("#catalog"), $("#delivery")].forEach((section) => observer.observe(section));
 }
 
+function initMotion() {
+  const root = document.documentElement;
+  const hero = $(".hero");
+  const header = $(".site-header");
+  const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let frame = 0;
+  let previousY = window.scrollY;
+
+  const update = () => {
+    frame = 0;
+    const y = window.scrollY;
+    const maxScroll = Math.max(1, document.documentElement.scrollHeight - innerHeight);
+    const heroProgress = Math.min(1, Math.max(0, y / Math.max(1, hero.offsetHeight)));
+    root.style.setProperty("--page-progress", String(y / maxScroll));
+    root.style.setProperty("--hero-progress", String(heroProgress));
+    root.style.setProperty("--scroll-direction", String(Math.sign(y - previousY)));
+    header.classList.toggle("scrolled", y > 24);
+    previousY = y;
+  };
+
+  const requestUpdate = () => {
+    if (!frame) frame = requestAnimationFrame(update);
+  };
+
+  update();
+  addEventListener("scroll", requestUpdate, { passive: true });
+  addEventListener("resize", requestUpdate, { passive: true });
+
+  const telegramMode = root.classList.contains("telegram-mode");
+  if (reducedMotion || telegramMode || !matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+
+  $$(".magnetic, .header-cart").forEach((element) => {
+    element.addEventListener("pointermove", (event) => {
+      const rect = element.getBoundingClientRect();
+      const x = ((event.clientX - rect.left) / rect.width - 0.5) * 8;
+      const yOffset = ((event.clientY - rect.top) / rect.height - 0.5) * 8;
+      element.style.setProperty("--magnetic-x", `${x.toFixed(2)}px`);
+      element.style.setProperty("--magnetic-y", `${yOffset.toFixed(2)}px`);
+    });
+    element.addEventListener("pointerleave", () => {
+      element.style.setProperty("--magnetic-x", "0px");
+      element.style.setProperty("--magnetic-y", "0px");
+    });
+  });
+}
+
 $("#tabs").addEventListener("click", (event) => {
   const button = event.target.closest("[data-category]");
   if (button) setCategory(button.dataset.category);
@@ -406,6 +564,13 @@ $("#subtabs").addEventListener("click", (event) => {
   const button = event.target.closest("[data-subcategory]");
   if (!button) return;
   currentSubcategory = button.dataset.subcategory;
+  renderSubtabs();
+  renderProducts();
+});
+
+$("#telegramCategorySelect").addEventListener("change", (event) => setCategory(event.target.value));
+$("#telegramSubcategorySelect").addEventListener("change", (event) => {
+  currentSubcategory = event.target.value;
   renderSubtabs();
   renderProducts();
 });
@@ -508,18 +673,19 @@ $("#checkoutForm").addEventListener("submit", async (event) => {
     renderCart();
     formElement.reset();
     closeDialog($("#checkoutDialog"));
-    $("#orderSuccessText").textContent = `Спасибо за покупку. Заказ #${order.id} отправлен администратору. Он отдельно рассчитает стоимость товаров и доставки, затем свяжется с вами по указанным контактам.`;
+    $("#orderSuccessText").textContent = siteCopy("site_success_text").replaceAll("{id}", order.id);
     openDialog($("#successDialog"));
   } catch (error) {
     tg?.showAlert ? tg.showAlert(error.message) : showToast(error.message);
   } finally {
     submit.disabled = false;
-    submit.textContent = "Отправить заказ";
+    submit.textContent = siteCopy("site_submit_order");
   }
 });
 
 $("#year").textContent = new Date().getFullYear();
 initSectorNavigation();
+initMotion();
 init().catch((error) => {
   $("#products").innerHTML = `<div class="empty-state"><strong>Каталог временно недоступен</strong><span>${escapeHtml(error.message)}</span></div>`;
   showToast(error.message);

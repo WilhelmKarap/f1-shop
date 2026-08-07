@@ -7,6 +7,31 @@ let orders = [];
 let settings = {};
 let currentOrderId = null;
 
+const SITE_COPY_DEFAULTS = {
+  site_nav_catalog: "Каталог", site_nav_weekly: "Скидки недели", site_nav_delivery: "Доставка", site_nav_contact: "Связаться", site_cart_label: "Пит-стоп",
+  site_hero_kicker_1: "Коллекция 2026", site_hero_kicker_2: "Печать и детали", site_hero_title_top: "F1", site_hero_title_bottom: "Posters",
+  site_hero_text: "Постеры, конструкторы, одежда и кастомные иллюстрации для тех, кто замечает каждую деталь гонки.", site_hero_primary_cta: "Выйти на старт", site_hero_weekly_cta: "Скидки недели",
+  site_metric_products: "Товары", site_metric_categories: "Категории", site_metric_delivery: "Доставка", site_metric_delivery_value: "ПВЗ",
+  site_weekly_category: "Скидки недели", site_all_category: "Все товары", site_search_label: "Поиск", site_search_placeholder: "Название, команда или пилот",
+  site_mobile_category_label: "Категория", site_mobile_subcategory_label: "Подкатегория", site_sort_label: "Порядок", site_sort_default: "По умолчанию",
+  site_sort_price_asc: "Сначала дешевле", site_sort_price_desc: "Сначала дороже", site_sort_name: "По названию", site_all_subcategory: "Все",
+  site_discount_badge: "Скидка недели", site_add_to_cart: "Добавить в корзину", site_empty_title: "В этом секторе пока нет товаров", site_empty_text: "Попробуйте другую категорию или измените запрос",
+  site_delivery_kicker: "От корзины до получения", site_delivery_title: "Спокойный круг после финиша.", site_delivery_step1_title: "Оформите заказ",
+  site_delivery_step1_text: "Укажите телефон, службу выдачи и точный адрес выбранного ПВЗ.", site_delivery_step2_title: "Получите расчёт",
+  site_delivery_step2_text: "Администратор отдельно рассчитает товары и доставку, затем свяжется с вами.", site_delivery_step3_title: "Подтвердите оплату",
+  site_delivery_step3_text: "Оплата доступна по QR-коду или ссылке после подтверждения состава заказа.", site_delivery_route_label: "Маршрут",
+  site_finish_kicker: "Не нашли нужный сюжет?", site_finish_title: "Соберём постер под вашу идею.", site_finish_button: "Обсудить с менеджером",
+  site_cart_title: "Корзина", site_cart_empty_title: "Корзина пуста", site_cart_empty_text: "Добавьте товары из каталога", site_cart_total_label: "Товары",
+  site_cart_delivery_note: "Стоимость доставки администратор рассчитает отдельно.", site_checkout_delivery_note: "Доставка будет рассчитана отдельно", site_checkout_button: "Оформить заказ",
+  site_checkout_kicker: "Финальный сектор", site_checkout_title: "Оформление заказа", site_checkout_intro: "После отправки администратор рассчитает стоимость доставки и свяжется с вами.",
+  site_field_name: "ФИО", site_field_phone: "Телефон", site_field_telegram: "Telegram для связи", site_field_provider: "Пункт выдачи",
+  site_field_address: "Адрес ПВЗ Озон/Яндекс Маркет", site_field_comment: "Комментарий", site_optional_label: "необязательно",
+  site_provider_placeholder: "Выберите службу", site_provider_ozon: "Озон", site_provider_yandex: "Яндекс Маркет", site_submit_order: "Отправить заказ",
+  site_success_kicker: "Финиш", site_success_title: "Заказ принят",
+  site_success_text: "Спасибо за покупку. Заказ #{id} отправлен администратору. Он отдельно рассчитает стоимость товаров и доставки, затем свяжется с вами по указанным контактам.",
+  site_success_button: "Вернуться в каталог", site_footer_tagline: "Постеры, конструкторы и авторские работы о скорости.", site_footer_manager: "Менеджер", site_footer_admin: "Управление",
+};
+
 const $ = (s) => document.querySelector(s);
 const money = (v) => `${new Intl.NumberFormat("ru-RU").format(v || 0)} ₽`;
 const asset = (url) => url ? (url.startsWith("http") ? url : `${API}${url}`) : "";
@@ -139,7 +164,7 @@ async function loadPage(page) {
   if (page === "products") await loadProducts();
   if (page === "orders") await loadOrders();
   if (page === "weekly") await loadWeekly();
-  if (page === "banners" || page === "settings") await loadSettings();
+  if (page === "banners" || page === "content" || page === "settings") await loadSettings();
 }
 
 async function loadDashboard() {
@@ -217,9 +242,10 @@ function labelStatus(s) {
 
 async function loadSettings() {
   settings = await api("/api/settings");
-  for (const form of [$("#settingsForm"), $("#bannersForm")]) {
+  for (const form of [$("#settingsForm"), $("#bannersForm"), $("#contentForm")]) {
     [...form.elements].forEach((el) => {
       if (el.name && settings[el.name] != null) el.value = settings[el.name];
+      else if (form.id === "contentForm" && el.name && SITE_COPY_DEFAULTS[el.name] != null) el.value = SITE_COPY_DEFAULTS[el.name];
     });
   }
 }
@@ -351,7 +377,7 @@ $("#orderForm").addEventListener("input", (e) => {
   if (e.target.name === "items_price" || e.target.name === "delivery_price") renderOrderTotal();
 });
 
-for (const form of [$("#settingsForm"), $("#bannersForm")]) {
+for (const form of [$("#settingsForm"), $("#bannersForm"), $("#contentForm")]) {
   form.onsubmit = async (e) => {
     e.preventDefault();
     await api("/api/settings", { method: "PUT", body: JSON.stringify(Object.fromEntries(new FormData(e.currentTarget).entries())) });
