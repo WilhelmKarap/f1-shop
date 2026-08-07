@@ -3,102 +3,240 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#0d0f14" />
-    <title>F1 Constructor Shop</title>
-    <link rel="stylesheet" href="styles.css" />
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <meta name="theme-color" content="#101216" />
+    <meta name="description" content="F1 Posters — постеры, конструкторы, одежда и авторские иллюстрации о гонках." />
+    <title>F1 Posters — гоночные постеры и коллекционные вещи</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <link rel="preload" href="assets/hero-pitwall.webp" as="image" type="image/webp" />
+    <link rel="stylesheet" href="storefront.css?v=20260807-1" />
+    <script async src="https://telegram.org/js/telegram-web-app.js" onload="window.dispatchEvent(new Event('telegram-web-app-ready'))"></script>
   </head>
   <body>
-    <main class="mini-app">
-      <header class="shop-header">
-        <img id="logo" class="logo hidden" alt="Логотип" />
-        <div>
-          <p class="eyebrow">Telegram Mini App</p>
-          <h1 id="shopName">F1 Constructor Shop</h1>
-        </div>
-      </header>
+    <a class="skip-link" href="#catalog">Перейти к каталогу</a>
 
-      <section class="hero" id="hero">
-        <img id="heroImage" class="hero__image hidden" alt="Баннер" />
-        <div class="hero__content">
-          <strong>Скидки недели</strong>
-          <span id="bannerText">Постеры, LEGO Formula 1, одежда и кастомные иллюстрации</span>
+    <header class="site-header" id="top">
+      <a class="brand" href="#top" aria-label="F1 Posters, на главную">
+        <span class="brand__mark" aria-hidden="true">F1</span>
+        <span class="brand__name">Posters</span>
+      </a>
+
+      <button class="menu-toggle" id="menuToggle" type="button" aria-expanded="false" aria-controls="primaryNav">
+        <span aria-hidden="true"></span><span aria-hidden="true"></span>
+        <span class="sr-only">Открыть меню</span>
+      </button>
+
+      <nav class="primary-nav" id="primaryNav" aria-label="Основная навигация">
+        <a href="#catalog">Каталог</a>
+        <a href="#catalog" data-nav-category="weekly">Скидки недели</a>
+        <a href="#delivery">Доставка</a>
+        <a class="manager-link" id="managerLink" href="https://t.me/F1posters_mng" target="_blank" rel="noreferrer">Связаться</a>
+      </nav>
+
+      <button class="header-cart" id="headerCart" type="button" aria-label="Открыть корзину">
+        <span>Пит-стоп</span>
+        <b id="headerCartCount">0</b>
+      </button>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="heroTitle">
+        <img class="hero__image" src="assets/hero-pitwall.webp" alt="Гоночный болид в пит-лейне после дождя" fetchpriority="high" />
+        <div class="hero__shade"></div>
+        <div class="hero__grid container">
+          <div class="hero__copy reveal">
+            <p class="kicker"><span>Коллекция 2026</span><span>Печать и детали</span></p>
+            <h1 id="heroTitle"><span id="shopName">F1</span><br />Posters</h1>
+            <p class="hero__lead" id="bannerText">Постеры, конструкторы, одежда и кастомные иллюстрации для тех, кто замечает каждую деталь гонки.</p>
+            <div class="hero__actions">
+              <a class="button button--signal" href="#catalog">Выйти на старт</a>
+              <a class="text-link" href="#catalog" data-nav-category="weekly">Скидки недели <span aria-hidden="true">→</span></a>
+            </div>
+          </div>
+
+          <div class="hero__telemetry" aria-label="Информация о магазине">
+            <div><span>Товары</span><strong id="heroProductCount">--</strong></div>
+            <div><span>Категории</span><strong id="heroCategoryCount">--</strong></div>
+            <div><span>Доставка</span><strong>ПВЗ</strong></div>
+          </div>
+        </div>
+        <a class="hero__scroll" href="#catalog"><span>Следующий сектор</span><i aria-hidden="true"></i></a>
+      </section>
+
+      <nav class="sector-rail" aria-label="Разделы страницы">
+        <a class="active" href="#catalog" data-sector="catalog"><span>S1</span><b>Каталог</b></a>
+        <a href="#delivery" data-sector="delivery"><span>S2</span><b>Условия</b></a>
+        <button type="button" data-sector="order" id="sectorCart"><span>S3</span><b>Заказ</b></button>
+      </nav>
+
+      <section class="catalog-section" id="catalog" aria-labelledby="catalogTitle">
+        <div class="container catalog-heading reveal">
+          <div class="section-index"><span>S1</span><i></i><span>01</span></div>
+          <div>
+            <p class="kicker kicker--dark">Управляемый ассортимент</p>
+            <h2 id="catalogTitle">Стартовая решётка</h2>
+          </div>
+          <p>Выберите направление, найдите нужный сюжет и соберите свой заказ. Все позиции и цены синхронизированы с админ-панелью.</p>
+        </div>
+
+        <div class="catalog-controls container reveal">
+          <div class="category-tabs" id="tabs" role="tablist" aria-label="Категории товаров"></div>
+
+          <div class="filter-line">
+            <label class="search-field">
+              <span class="sr-only">Поиск по каталогу</span>
+              <input id="searchInput" type="search" placeholder="Название, команда или пилот" autocomplete="off" />
+              <span aria-hidden="true">Найти</span>
+            </label>
+            <label class="sort-field">
+              <span>Порядок</span>
+              <select id="sortSelect">
+                <option value="default">По умолчанию</option>
+                <option value="price-asc">Сначала дешевле</option>
+                <option value="price-desc">Сначала дороже</option>
+                <option value="name">По названию</option>
+              </select>
+            </label>
+          </div>
+
+          <nav class="subcategory-tabs hidden" id="subtabs" aria-label="Подкатегории"></nav>
+          <div class="result-line"><span id="activeCollection">Скидки недели</span><b id="resultCount">0 позиций</b></div>
+        </div>
+
+        <section class="product-grid container" id="products" aria-live="polite">
+          <div class="catalog-loading"><i></i><span>Готовим стартовую решётку</span></div>
+        </section>
+      </section>
+
+      <section class="delivery-band" id="delivery" aria-labelledby="deliveryTitle">
+        <div class="delivery-band__flag" aria-hidden="true"></div>
+        <div class="container delivery-layout">
+          <div class="section-index section-index--light"><span>S2</span><i></i><span>02</span></div>
+          <div class="delivery-title reveal">
+            <p class="kicker">От корзины до получения</p>
+            <h2 id="deliveryTitle">Спокойный круг после финиша.</h2>
+          </div>
+          <div class="delivery-steps">
+            <article class="reveal">
+              <span>01</span>
+              <h3>Оформите заказ</h3>
+              <p>Укажите телефон, службу выдачи и точный адрес выбранного ПВЗ.</p>
+            </article>
+            <article class="reveal">
+              <span>02</span>
+              <h3>Получите расчёт</h3>
+              <p>Администратор отдельно рассчитает товары и доставку, затем свяжется с вами.</p>
+            </article>
+            <article class="reveal">
+              <span>03</span>
+              <h3>Подтвердите оплату</h3>
+              <p>Оплата доступна по QR-коду или ссылке после подтверждения состава заказа.</p>
+            </article>
+          </div>
+          <div class="delivery-note">
+            <span>Маршрут</span>
+            <strong id="deliveryText">Пункты выдачи Озон и Яндекс Маркет по России</strong>
+          </div>
         </div>
       </section>
 
-      <label class="search">
-        <input id="searchInput" type="search" placeholder="Поиск по каталогу" />
-      </label>
-
-      <nav class="tabs" id="tabs"></nav>
-      <nav class="tabs subtabs hidden" id="subtabs"></nav>
-      <section class="grid" id="products"></section>
+      <section class="finish-section">
+        <div class="container finish-layout reveal">
+          <p class="finish-number" aria-hidden="true">F1</p>
+          <div>
+            <p class="kicker kicker--dark">Не нашли нужный сюжет?</p>
+            <h2>Соберём постер под вашу идею.</h2>
+          </div>
+          <a class="button button--dark" id="customManagerLink" href="https://t.me/F1posters_mng" target="_blank" rel="noreferrer">Обсудить с менеджером</a>
+        </div>
+      </section>
     </main>
 
-    <aside class="cart-bar" id="cartBar">
-      <div>
-        <small id="cartCount">0 товаров</small>
-        <strong id="cartTotal">0 ₽</strong>
+    <footer class="site-footer">
+      <div class="container footer-layout">
+        <div class="brand brand--footer"><span class="brand__mark">F1</span><span class="brand__name">Posters</span></div>
+        <p>Постеры, конструкторы и авторские работы о скорости.</p>
+        <nav aria-label="Навигация в подвале">
+          <a href="#catalog">Каталог</a>
+          <a id="footerManagerLink" href="https://t.me/F1posters_mng" target="_blank" rel="noreferrer">Менеджер</a>
+          <a href="admin.html">Управление</a>
+        </nav>
+        <span>© <span id="year"></span> F1 Posters</span>
       </div>
-      <button class="btn btn-primary" id="openCart">Корзина</button>
+    </footer>
+
+    <div class="drawer-backdrop" id="drawerBackdrop"></div>
+    <aside class="cart-drawer" id="cartDrawer" aria-hidden="true" aria-labelledby="cartTitle">
+      <header>
+        <div><span class="kicker kicker--dark">S3 / Пит-стоп</span><h2 id="cartTitle">Корзина</h2></div>
+        <button class="close-button" id="closeCart" type="button" aria-label="Закрыть корзину">×</button>
+      </header>
+      <div class="cart-items" id="cartItems"></div>
+      <footer>
+        <div class="cart-summary"><span>Товары</span><strong id="cartSheetTotal">0 ₽</strong></div>
+        <p>Стоимость доставки администратор рассчитает отдельно.</p>
+        <button class="button button--signal button--wide" id="checkout" type="button">Оформить заказ</button>
+      </footer>
     </aside>
 
-    <div class="overlay" id="productOverlay">
-      <article class="sheet">
-        <button class="close" data-close="productOverlay" type="button">Закрыть</button>
-        <img id="productImage" class="sheet-image" alt="Товар" />
+    <div class="mobile-cart" id="mobileCart">
+      <button id="mobileCartButton" type="button">
+        <span><small id="cartCount">0 товаров</small><strong id="cartTotal">0 ₽</strong></span>
+        <b>Корзина</b>
+      </button>
+    </div>
+
+    <dialog class="product-dialog" id="productDialog">
+      <button class="close-button dialog-close" data-dialog-close="productDialog" type="button" aria-label="Закрыть карточку товара">×</button>
+      <div class="product-dialog__media"><img id="productImage" alt="" /></div>
+      <div class="product-dialog__body">
+        <p class="product-code" id="productCode"></p>
         <h2 id="productTitle"></h2>
-        <p id="productDescription"></p>
-        <div class="price-row">
-          <strong id="productPrice"></strong>
-          <s id="productOldPrice"></s>
+        <p class="product-description" id="productDescription"></p>
+        <div class="product-dialog__footer">
+          <div class="price-row"><strong id="productPrice"></strong><s id="productOldPrice"></s></div>
+          <button class="button button--signal" id="addToCart" type="button">Добавить в корзину</button>
         </div>
-        <button class="btn btn-primary" id="addToCart">Добавить в корзину</button>
-      </article>
-    </div>
+      </div>
+    </dialog>
 
-    <div class="overlay" id="cartOverlay">
-      <article class="sheet">
-        <button class="close" data-close="cartOverlay" type="button">Закрыть</button>
-        <h2>Корзина</h2>
-        <div id="cartItems"></div>
-        <div class="summary">
-          <span>Итого</span>
-          <strong id="cartSheetTotal">0 ₽</strong>
-        </div>
-        <button class="btn btn-primary" id="checkout">Оформить заказ</button>
-      </article>
-    </div>
-
-    <div class="overlay" id="checkoutOverlay">
-      <form class="sheet" id="checkoutForm">
-        <button class="close" data-close="checkoutOverlay" type="button">Закрыть</button>
+    <dialog class="checkout-dialog" id="checkoutDialog">
+      <button class="close-button dialog-close" data-dialog-close="checkoutDialog" type="button" aria-label="Закрыть оформление заказа">×</button>
+      <div class="checkout-heading">
+        <p class="kicker kicker--dark">Финальный сектор</p>
         <h2>Оформление заказа</h2>
-        <label class="field">ФИО<input name="customer_name" required /></label>
-        <label class="field">Телефон<input name="phone" required /></label>
-        <label class="field">Пункт выдачи
+        <p>После отправки администратор рассчитает стоимость доставки и свяжется с вами.</p>
+      </div>
+      <form id="checkoutForm">
+        <label class="field"><span>ФИО</span><input name="customer_name" autocomplete="name" required /></label>
+        <label class="field"><span>Телефон</span><input name="phone" type="tel" autocomplete="tel" placeholder="+7 999 000-00-00" required /></label>
+        <label class="field"><span>Telegram для связи <small>необязательно</small></span><input name="username" autocomplete="off" placeholder="@username" /></label>
+        <label class="field"><span>Пункт выдачи</span>
           <select name="delivery_provider" required>
-            <option value="">Выберите пункт выдачи</option>
+            <option value="">Выберите службу</option>
             <option value="ozon">Озон</option>
             <option value="yandex_market">Яндекс Маркет</option>
           </select>
         </label>
-        <label class="field">Адрес ПВЗ Озон/Яндекс маркет<input name="address" required /></label>
-        <label class="field">Комментарий<textarea name="comment"></textarea></label>
-        <button class="btn btn-primary" type="submit">Оформить заказ</button>
+        <label class="field field--wide"><span>Адрес ПВЗ Озон/Яндекс Маркет</span><input name="address" autocomplete="street-address" required /></label>
+        <label class="field field--wide"><span>Комментарий <small>необязательно</small></span><textarea name="comment" rows="4"></textarea></label>
+        <div class="checkout-total field--wide"><span>Товары</span><strong id="checkoutTotal">0 ₽</strong><small>Доставка будет рассчитана отдельно</small></div>
+        <button class="button button--signal field--wide" type="submit">Отправить заказ</button>
       </form>
-    </div>
+    </dialog>
 
-    <div class="overlay" id="orderSuccessOverlay">
-      <article class="sheet">
-        <button class="close" data-close="orderSuccessOverlay" type="button">Закрыть</button>
-        <h2>Заказ оформлен</h2>
-        <p id="orderSuccessText"></p>
-        <button class="btn btn-primary" data-close="orderSuccessOverlay" type="button">Понятно</button>
-      </article>
-    </div>
+    <dialog class="success-dialog" id="successDialog">
+      <button class="close-button dialog-close" data-dialog-close="successDialog" type="button" aria-label="Закрыть сообщение">×</button>
+      <span class="success-dialog__index">Финиш</span>
+      <h2>Заказ принят</h2>
+      <p id="orderSuccessText"></p>
+      <button class="button button--dark" data-dialog-close="successDialog" type="button">Вернуться в каталог</button>
+    </dialog>
 
-    <script src="config.js?v=20260713-4"></script>
-    <script src="app.js?v=20260713-4"></script>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <script defer src="config.js?v=20260807-1"></script>
+    <script defer src="app.js?v=20260807-1"></script>
   </body>
 </html>
