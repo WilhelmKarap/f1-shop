@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "f1-constructor-shop",
+  "main": "src/index.js",
+  "compatibility_date": "2026-08-07",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "f1_constructor_shop",
+      "database_id": "99f82254-4b24-4097-8ef2-a1d6f737fce1"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "UPLOADS",
+      "id": "131e8c5dcf034a31971590b0a5cb45eb"
+    }
+  ],
+  "vars": {
+    "FRONTEND_ORIGIN": "*",
+    "WEBAPP_URL": "https://shop-web-rose.vercel.app",
+    "BOT_USERNAME": "F1posters_bot",
+    "ADMIN_LOGIN": "admin"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "f1-constructor-shop-cloudflare",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:migrate:local": "wrangler d1 migrations apply f1_constructor_shop --local",
+    "db:migrate": "wrangler d1 migrations apply f1_constructor_shop --remote",
+    "db:seed:local": "wrangler d1 execute f1_constructor_shop --local --file=./migrations/0002_seed_defaults.sql",
+    "db:seed": "wrangler d1 execute f1_constructor_shop --remote --file=./migrations/0002_seed_defaults.sql"
+  },
+  "devDependencies": {
+    "wrangler": "^4.30.0"
+  }
+}

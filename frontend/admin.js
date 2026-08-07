@@ -30,7 +30,7 @@ async function api(path, options = {}) {
     throw new Error("Сессия истекла. Войдите заново.");
   }
   if (res.status === 404 && path.startsWith("/api/subcategories")) {
-    throw new Error("Backend на Railway не обновлен: маршруты подкатегорий отсутствуют. Выполните новый Deploy backend.");
+    throw new Error("Backend не обновлен: маршруты подкатегорий отсутствуют. Выполните новый Deploy backend.");
   }
   if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Ошибка запроса");
   return res.json();
@@ -59,7 +59,7 @@ async function downloadBackup() {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `f1-shop-backup-${new Date().toISOString().slice(0, 10)}.zip`;
+  link.download = `f1-shop-backup-${new Date().toISOString().slice(0, 10)}.json`;
   document.body.appendChild(link);
   link.click();
   link.remove();
@@ -370,8 +370,8 @@ $("#downloadBackup").onclick = async () => {
 
 $("#restoreBackup").onclick = async () => {
   const file = $("#restoreBackupFile").files?.[0];
-  if (!file) return alert("Выберите ZIP-файл резервной копии");
-  if (!confirm("Восстановить резервную копию? Данные магазина будут обновлены содержимым архива.")) return;
+  if (!file) return alert("Выберите JSON-файл резервной копии");
+  if (!confirm("Восстановить резервную копию? Данные магазина будут обновлены содержимым файла.")) return;
   try {
     const result = await restoreBackup(file);
     const imported = result.imported || {};
@@ -385,5 +385,17 @@ $("#restoreBackup").onclick = async () => {
     alert(error.message);
   }
 };
+
+const setupTelegramBotButton = $("#setupTelegramBot");
+if (setupTelegramBotButton) {
+  setupTelegramBotButton.onclick = async () => {
+    try {
+      const result = await api("/api/admin/setup-bot", { method: "POST", body: JSON.stringify({}) });
+      alert(result.ok ? "Telegram webhook настроен" : "Backend ответил, но Telegram не подтвердил настройку");
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+}
 
 checkSession();

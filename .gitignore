@@ -1,0 +1,12 @@
+node_modules/
+.wrangler/
+.wrangler-login/
+.dev.vars
+.env
+.env.*
+*.log
+*.db
+*.sqlite
+*.sqlite3
+backup-*/
+railway-volume-export/

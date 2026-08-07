@@ -1,68 +1,56 @@
 # F1 Constructor Shop
 
-Telegram Mini App shop with a standalone web CMS.
+Telegram Mini App shop with a standalone web admin panel.
+
+## Production
+
+- Frontend: `https://shop-web-rose.vercel.app`
+- Backend: `https://f1-constructor-shop.f1-constructor-shop-cloudflare.workers.dev`
+- Telegram bot: `@F1posters_bot`
+
+The frontend is hosted on Vercel. The API and Telegram webhook run on Cloudflare Workers. Products, categories, settings and orders are stored in Cloudflare D1. Uploaded images are stored in Workers KV.
 
 ## Structure
 
-- `frontend/` - public Telegram Mini App storefront and standalone admin panel.
-- `backend/` - Express REST API, SQLite database, Telegram bot, uploads.
+- `frontend/` - Telegram Mini App storefront and standalone admin panel.
+- `cloudflare-worker/` - current production backend, D1 migrations and import tools.
+- `backend/` - legacy Railway/Express backend kept only for reference and old backup compatibility.
 
-The public storefront does not contain links to the admin panel. The admin panel is opened separately at `admin.html`.
+The admin panel is opened separately at `https://shop-web-rose.vercel.app/admin.html` and is not linked from the public storefront.
 
-## Current Deploy URLs
+## Cloudflare Deploy
 
-- Frontend: `https://shop-web-rose.vercel.app`
-- Backend: `https://shop-web-production-9d66.up.railway.app`
-
-`frontend/config.js` points to the Railway backend.
-
-## Backend Variables
-
-Set these in Railway Variables:
-
-- `BOT_TOKEN` - Telegram bot token.
-- `ADMIN_LOGIN` - admin panel login.
-- `ADMIN_PASSWORD` - admin panel password.
-- `ADMIN_SECRET` - optional password-only secret fallback.
-- `JWT_SECRET` - long random string for admin sessions.
-- `ADMIN_CHAT_ID` - chat id for new-order notifications.
-- `WEBAPP_URL` - public HTTPS URL of `frontend/index.html`.
-- `MANAGER_URL` - Telegram manager link.
-- `FRONTEND_ORIGIN` - Vercel frontend origin or `*`.
-
-Telegram Login Widget is not used for admin access anymore.
-
-## Admin Auth
-
-Admin login flow:
-
-1. `frontend/admin.html` shows login/password form.
-2. `frontend/admin.js` sends credentials to `POST /api/admin/login`.
-3. Backend checks `ADMIN_LOGIN` and `ADMIN_PASSWORD` on the server.
-4. Backend returns a temporary JWT.
-5. Admin requests use `Authorization: Bearer <token>`.
-
-Do not put admin login, password, bot token, or JWT secret into frontend files or GitHub.
-
-## Backend
-
-```bash
-cd backend
+```powershell
+cd cloudflare-worker
 npm install
-npm start
+npx wrangler login
+npm run db:migrate
+npm run deploy
 ```
 
-Railway installs dependencies from `backend/package.json` automatically.
+Required Cloudflare secrets:
 
-## Data
+- `BOT_TOKEN`
+- `ADMIN_LOGIN`
+- `ADMIN_PASSWORD`
+- `JWT_SECRET`
+- `ADMIN_CHAT_ID`
 
-Products, categories, orders, order items, users, and settings are stored in SQLite.
-Images are uploaded into:
+Do not place secrets in frontend files or commit them to GitHub.
 
-- `backend/uploads/products`
-- `backend/uploads/categories`
-- `backend/uploads/banners`
-- `backend/uploads/logo`
-- `backend/uploads/qr`
+## Assortment Import
 
-SQLite stores only image paths, not image binary data.
+The idempotent JSON importer accepts `categories.json`, `products.json` and `settings.json` from the old Railway shop:
+
+```powershell
+$env:CF_API_URL="https://f1-constructor-shop.f1-constructor-shop-cloudflare.workers.dev"
+$env:ADMIN_LOGIN="admin"
+$env:ADMIN_PASSWORD="your-password"
+node tools/import-assortment.mjs
+```
+
+JSON backups contain database records and image paths. Image binaries must be uploaded separately through the admin panel or migrated from the old `uploads/` directory.
+
+## Backups
+
+The Cloudflare admin panel downloads and restores JSON backups. The import uses source IDs and upserts records, so restoring the same backup does not create duplicate products or categories.

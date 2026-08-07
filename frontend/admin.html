@@ -91,13 +91,14 @@
             <label class="field">Текст оплаты<textarea name="payment_text"></textarea></label>
             <label class="field">Приветствие бота<textarea name="welcome_text"></textarea></label>
             <button class="btn btn-primary">Сохранить</button>
+            <button class="btn btn-secondary" id="setupTelegramBot" type="button">Настроить Telegram webhook</button>
           </form>
           <div class="panel backup-panel">
             <h2>Резервные копии</h2>
-            <p class="muted">Скачайте ZIP перед крупными изменениями или восстановите ранее сохраненную копию магазина.</p>
+            <p class="muted">Скачайте JSON перед крупными изменениями или восстановите ранее сохраненную копию магазина.</p>
             <div class="backup-actions">
               <button class="btn btn-secondary" id="downloadBackup" type="button">Скачать резервную копию</button>
-              <label class="field">ZIP-файл резервной копии<input id="restoreBackupFile" type="file" accept=".zip,application/zip" /></label>
+              <label class="field">JSON-файл резервной копии<input id="restoreBackupFile" type="file" accept=".json,application/json" /></label>
               <button class="btn btn-primary" id="restoreBackup" type="button">Восстановить резервную копию</button>
             </div>
           </div>
@@ -157,7 +158,7 @@
       <button class="btn btn-primary">Сохранить</button>
     </form></div>
 
-    <script src="config.js?v=20260713-4"></script>
-    <script src="admin.js?v=20260713-4"></script>
+    <script src="config.js?v=20260807-1"></script>
+    <script src="admin.js?v=20260807-1"></script>
   </body>
 </html>
