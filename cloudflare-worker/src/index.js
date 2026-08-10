@@ -22,7 +22,7 @@ export default {
       if (url.pathname.startsWith("/uploads/")) return getUpload(request, env);
       if (url.pathname === "/telegram/webhook" && request.method === "POST") return telegramWebhook(request, env);
 
-      if (url.pathname === "/api/health" && request.method === "GET") return json(request, env, { ok: true, version: "cloudflare-2026-08-10.1" });
+      if (url.pathname === "/api/health" && request.method === "GET") return json(request, env, { ok: true, version: "cloudflare-2026-08-10.2" });
       if (url.pathname === "/api/admin/login" && request.method === "POST") return adminLogin(request, env);
       if (url.pathname === "/api/me" && request.method === "GET") return withAdmin(request, env, () => json(request, env, { ok: true, admin: { role: "admin" } }));
       if (url.pathname === "/api/upload" && request.method === "POST") return withAdmin(request, env, () => uploadFile(request, env));
@@ -86,7 +86,7 @@ function empty(request, env) {
 function json(request, env, data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "Content-Type": "application/json; charset=utf-8", ...corsHeaders(request, env), ...extraHeaders },
+    headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", ...corsHeaders(request, env), ...extraHeaders },
   });
 }
 
@@ -119,6 +119,7 @@ function rowToProduct(row) {
     is_custom: Boolean(row.is_custom),
     includes_frame: Boolean(row.includes_frame),
     includes_mount: Boolean(row.includes_mount),
+    show_in_hero: Boolean(row.show_in_hero),
   };
 }
 
@@ -324,6 +325,7 @@ async function listProducts(request, env) {
   }
   if (url.searchParams.get("weekly") === "1") sql += " AND is_weekly_discount = 1";
   if (url.searchParams.get("custom") === "1") sql += " AND is_custom = 1";
+  if (url.searchParams.get("hero") === "1") sql += " AND show_in_hero = 1";
   sql += " ORDER BY sort_order, id DESC";
   const { results } = await env.DB.prepare(sql).bind(...args).all();
   return json(request, env, results.map(rowToProduct));
@@ -360,6 +362,7 @@ function normalizeProduct(body) {
     includes_frame: bool(body.includes_frame),
     includes_mount: bool(body.includes_mount),
     is_weekly_discount: bool(body.is_weekly_discount),
+    show_in_hero: bool(body.show_in_hero),
     is_available: body.is_available === false ? 0 : 1,
     is_draft: bool(body.is_draft),
     sort_order: Number(body.sort_order) || 0,
@@ -371,9 +374,9 @@ async function createProduct(request, env) {
   if (!product.title || (!product.price && !product.is_custom)) return json(request, env, { error: "Название и цена обязательны" }, 400);
   const result = await env.DB.prepare(
     `INSERT INTO products
-     (category_id, subcategory_id, title, description, price, old_price, image, cover_image, main_image, original_cover_image, original_main_image, team, is_custom, custom_price, product_size, lego_set, project_name, custom_type, includes_frame, includes_mount, is_weekly_discount, is_available, is_draft, sort_order)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).bind(product.category_id, product.subcategory_id, product.title, product.description, product.price, product.old_price, product.image, product.cover_image, product.main_image, product.original_cover_image, product.original_main_image, product.team, product.is_custom, product.custom_price, product.product_size, product.lego_set, product.project_name, product.custom_type, product.includes_frame, product.includes_mount, product.is_weekly_discount, product.is_available, product.is_draft, product.sort_order).run();
+     (category_id, subcategory_id, title, description, price, old_price, image, cover_image, main_image, original_cover_image, original_main_image, team, is_custom, custom_price, product_size, lego_set, project_name, custom_type, includes_frame, includes_mount, is_weekly_discount, show_in_hero, is_available, is_draft, sort_order)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(product.category_id, product.subcategory_id, product.title, product.description, product.price, product.old_price, product.image, product.cover_image, product.main_image, product.original_cover_image, product.original_main_image, product.team, product.is_custom, product.custom_price, product.product_size, product.lego_set, product.project_name, product.custom_type, product.includes_frame, product.includes_mount, product.is_weekly_discount, product.show_in_hero, product.is_available, product.is_draft, product.sort_order).run();
   return json(request, env, { id: result.meta.last_row_id });
 }
 
@@ -384,9 +387,9 @@ async function updateProduct(request, env, id) {
   if (!product.title || (!product.price && !product.is_custom)) return json(request, env, { error: "Название и цена обязательны" }, 400);
   await env.DB.prepare(
     `UPDATE products SET category_id = ?, subcategory_id = ?, title = ?, description = ?, price = ?, old_price = ?,
-     image = ?, cover_image = ?, main_image = ?, original_cover_image = ?, original_main_image = ?, team = ?, is_custom = ?, custom_price = ?, product_size = ?, lego_set = ?, project_name = ?, custom_type = ?, includes_frame = ?, includes_mount = ?, is_weekly_discount = ?, is_available = ?, is_draft = ?, sort_order = ?, updated_at = datetime('now')
+     image = ?, cover_image = ?, main_image = ?, original_cover_image = ?, original_main_image = ?, team = ?, is_custom = ?, custom_price = ?, product_size = ?, lego_set = ?, project_name = ?, custom_type = ?, includes_frame = ?, includes_mount = ?, is_weekly_discount = ?, show_in_hero = ?, is_available = ?, is_draft = ?, sort_order = ?, updated_at = datetime('now')
      WHERE id = ?`
-  ).bind(product.category_id, product.subcategory_id, product.title, product.description, product.price, product.old_price, product.image, product.cover_image, product.main_image, product.original_cover_image, product.original_main_image, product.team, product.is_custom, product.custom_price, product.product_size, product.lego_set, product.project_name, product.custom_type, product.includes_frame, product.includes_mount, product.is_weekly_discount, product.is_available, product.is_draft, product.sort_order, id).run();
+  ).bind(product.category_id, product.subcategory_id, product.title, product.description, product.price, product.old_price, product.image, product.cover_image, product.main_image, product.original_cover_image, product.original_main_image, product.team, product.is_custom, product.custom_price, product.product_size, product.lego_set, product.project_name, product.custom_type, product.includes_frame, product.includes_mount, product.is_weekly_discount, product.show_in_hero, product.is_available, product.is_draft, product.sort_order, id).run();
   return json(request, env, { ok: true });
 }
 
@@ -714,16 +717,16 @@ async function importData(request, env, data) {
       if (!p.title || (!p.price && !p.is_custom)) continue;
      await env.DB.prepare(
        `INSERT INTO products
-         (id, category_id, subcategory_id, title, description, price, old_price, image, cover_image, main_image, original_cover_image, original_main_image, team, is_custom, custom_price, product_size, lego_set, project_name, custom_type, includes_frame, includes_mount, is_weekly_discount, is_available, is_draft, sort_order)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         (id, category_id, subcategory_id, title, description, price, old_price, image, cover_image, main_image, original_cover_image, original_main_image, team, is_custom, custom_price, product_size, lego_set, project_name, custom_type, includes_frame, includes_mount, is_weekly_discount, show_in_hero, is_available, is_draft, sort_order)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           category_id = excluded.category_id, subcategory_id = excluded.subcategory_id, title = excluded.title,
            description = excluded.description, price = excluded.price, old_price = excluded.old_price, image = excluded.image, cover_image = excluded.cover_image, main_image = excluded.main_image,
            original_cover_image = excluded.original_cover_image, original_main_image = excluded.original_main_image, team = excluded.team, is_custom = excluded.is_custom, custom_price = excluded.custom_price,
            product_size = excluded.product_size, lego_set = excluded.lego_set, project_name = excluded.project_name, custom_type = excluded.custom_type, includes_frame = excluded.includes_frame, includes_mount = excluded.includes_mount,
-          is_weekly_discount = excluded.is_weekly_discount, is_available = excluded.is_available,
+          is_weekly_discount = excluded.is_weekly_discount, show_in_hero = excluded.show_in_hero, is_available = excluded.is_available,
           is_draft = excluded.is_draft, sort_order = excluded.sort_order, updated_at = datetime('now')`
-      ).bind(item.id || null, p.category_id, p.subcategory_id, p.title, p.description, p.price, p.old_price, p.image, p.cover_image, p.main_image, p.original_cover_image, p.original_main_image, p.team, p.is_custom, p.custom_price, p.product_size, p.lego_set, p.project_name, p.custom_type, p.includes_frame, p.includes_mount, p.is_weekly_discount, p.is_available, p.is_draft, p.sort_order).run();
+      ).bind(item.id || null, p.category_id, p.subcategory_id, p.title, p.description, p.price, p.old_price, p.image, p.cover_image, p.main_image, p.original_cover_image, p.original_main_image, p.team, p.is_custom, p.custom_price, p.product_size, p.lego_set, p.project_name, p.custom_type, p.includes_frame, p.includes_mount, p.is_weekly_discount, p.show_in_hero, p.is_available, p.is_draft, p.sort_order).run();
       imported.products += 1;
     }
   }

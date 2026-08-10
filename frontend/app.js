@@ -31,6 +31,11 @@ let currentSubcategory = "all";
 let currentProduct = null;
 let cart = [];
 let toastTimer = null;
+let heroProducts = [];
+let heroIndex = 0;
+let heroTimer = 0;
+let heroColorRequest = 0;
+let heroDragged = false;
 
 const DEFAULT_COPY = {
   site_nav_catalog: "Каталог",
@@ -121,8 +126,9 @@ const DEFAULT_COPY = {
   site_social_title: "Следите за новыми работами",
   site_social_tiktok: "TikTok",
   site_social_instagram: "Instagram",
+  site_social_open_profile: "Открыть профиль",
   site_product_kicker: "Коллекция F1 Posters",
-  site_custom_product_button: "Оставить заявку",
+  site_custom_product_button: "Узнать цену",
   site_price_on_request: "Цена по запросу",
 };
 
@@ -172,6 +178,14 @@ function productImage(product) {
 
 function productDetailImage(product) {
   return asset(product.main_image || product.cover_image || product.image) || fallbackFor(product);
+}
+
+function productMediaMarkup(product, title, loading = "lazy") {
+  const cover = productImage(product);
+  const main = productDetailImage(product);
+  const fallback = fallbackFor(product);
+  return `<img class="product-media__cover" src="${escapeHtml(cover)}" data-fallback="${fallback}" alt="${escapeHtml(title)}" loading="${loading}" />
+    <img class="product-media__main" src="${escapeHtml(main)}" data-fallback="${fallback}" alt="" loading="${loading}" />`;
 }
 
 function teamConfig(slug) {
@@ -301,7 +315,7 @@ function renderSettings() {
   document.documentElement.style.setProperty("--finish-background-image", finishBackground ? `url(${JSON.stringify(finishBackground)})` : "none");
 
   const managerUrl = normalizeManagerUrl();
-  ["managerLink", "customManagerLink", "customSectionManagerLink", "footerManagerLink"].forEach((id) => {
+  ["managerLink", "customManagerLink", "customSectionManagerLink", "footerManagerLink", "productManagerLink"].forEach((id) => {
     const link = $(`#${id}`);
     if (link) link.href = managerUrl;
   });
@@ -311,19 +325,20 @@ function premiumProductCard(product, index, kind = "standard") {
   const title = cleanCopy(product.title);
   const team = teamConfig(product.team);
   const isCustom = Boolean(product.is_custom);
-  const price = isCustom
-    ? `${siteCopy("site_price_on_request")}${product.custom_price ? ` · ${money(product.custom_price)}` : ""}`
-    : money(product.price);
-  const action = isCustom ? siteCopy("site_custom_product_button") : "+";
+  const price = isCustom && product.custom_price ? `От ${money(product.custom_price)}` : money(product.price);
   const category = team?.name || categoryLabel(product.category_id);
   return `<article class="premium-product reveal" style="--reveal-delay:${Math.min(index, 7) * 45}ms">
     <button class="premium-product__media" type="button" data-product="${product.id}" aria-label="Открыть ${escapeHtml(title)}">
       ${product.is_weekly_discount && kind !== "custom" ? `<span class="premium-product__flag">${escapeHtml(siteCopy("site_discount_badge"))}</span>` : ""}
-      <img src="${escapeHtml(productImage(product))}" data-fallback="${fallbackFor(product)}" alt="${escapeHtml(title)}" loading="lazy" />
+      ${productMediaMarkup(product, title)}
     </button>
     <div class="premium-product__body"><span>${escapeHtml(category)}</span><h3>${escapeHtml(title)}</h3>
-      <div class="price-row"><strong>${escapeHtml(price)}</strong>${!isCustom && product.old_price ? `<s>${money(product.old_price)}</s>` : ""}</div>
-      <button class="premium-product__add" type="button" data-${isCustom ? "product" : "add-product"}="${product.id}" aria-label="${escapeHtml(action)}: ${escapeHtml(title)}" title="${escapeHtml(action)}">${escapeHtml(action)}</button>
+      ${isCustom ? `<div class="custom-price-control" data-price-control>
+        <button class="custom-price-control__reveal" type="button" data-reveal-price="${product.id}">${escapeHtml(siteCopy("site_custom_product_button"))}</button>
+        <strong class="custom-price-control__price hidden">${escapeHtml(price)}</strong>
+        <a class="custom-price-control__manager hidden" href="${escapeHtml(normalizeManagerUrl())}" target="_blank" rel="noreferrer">Обсудить с менеджером</a>
+      </div>` : `<div class="price-row"><strong>${escapeHtml(price)}</strong>${product.old_price ? `<s>${money(product.old_price)}</s>` : ""}</div>
+        <button class="premium-product__add" type="button" data-add-product="${product.id}" aria-label="Добавить ${escapeHtml(title)}" title="${escapeHtml(siteCopy("site_add_to_cart"))}">+</button>`}
     </div>
   </article>`;
 }
@@ -331,22 +346,171 @@ function premiumProductCard(product, index, kind = "standard") {
 function renderHeroCarousel() {
   const host = $("#heroPosterCarousel");
   if (!host) return;
- const source = products.filter((product) => product.is_weekly_discount).concat(products.filter((product) => !product.is_weekly_discount)).slice(0, 5);
-  const center = Math.floor(source.length / 2);
-  host.innerHTML = source.map((product, index) => `<button class="poster-carousel__card" type="button" data-product="${product.id}" data-position="${index - center}" aria-label="Открыть ${escapeHtml(cleanCopy(product.title))}"><img src="${escapeHtml(productImage(product))}" data-fallback="${fallbackFor(product)}" alt="" /><span>${escapeHtml(cleanCopy(product.title))}</span></button>`).join("");
-  if (source.length > 1 && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    clearInterval(host.carouselTimer);
-    let active = center;
-    host.carouselTimer = setInterval(() => {
-      active = (active + 1) % source.length;
-      [...host.children].forEach((card, index) => {
-        let position = index - active;
-        if (position < -2) position += source.length;
-        if (position > 2) position -= source.length;
-        card.dataset.position = String(position);
+  const available = products.filter((product) => product.is_available !== false && !product.is_draft);
+  heroProducts = available.filter((product) => product.show_in_hero);
+  if (heroProducts.length < 3) {
+    const fallbackProducts = available
+      .filter((product) => !heroProducts.some((item) => String(item.id) === String(product.id)))
+      .sort((a, b) => {
+        const aKnownImage = /\.(?:avif|jpe?g|png|webp)(?:\?|$)/i.test(productDetailImage(a));
+        const bKnownImage = /\.(?:avif|jpe?g|png|webp)(?:\?|$)/i.test(productDetailImage(b));
+        return Number(bKnownImage) - Number(aKnownImage) || Number(b.is_weekly_discount) - Number(a.is_weekly_discount);
       });
-    }, 4200);
+    heroProducts = heroProducts.concat(fallbackProducts.slice(0, 3 - heroProducts.length));
   }
+  if (!heroProducts.length) {
+    host.innerHTML = "";
+    return;
+  }
+  heroIndex = Math.min(heroIndex, heroProducts.length - 1);
+  host.innerHTML = heroProducts.map((product, index) => `<button class="poster-carousel__card" type="button" data-hero-index="${index}" aria-label="Открыть ${escapeHtml(cleanCopy(product.title))}"><img src="${escapeHtml(productDetailImage(product))}" data-fallback="${fallbackFor(product)}" alt="" ${index ? 'loading="lazy"' : ''} /></button>`).join("");
+  bindHeroCarousel();
+  setHeroIndex(heroIndex, false);
+}
+
+function heroPosition(index) {
+  const total = heroProducts.length;
+  let position = (index - heroIndex + total) % total;
+  if (position > total / 2) position -= total;
+  return position;
+}
+
+function setHeroIndex(nextIndex, restart = true) {
+  if (!heroProducts.length) return;
+  heroIndex = (Number(nextIndex) + heroProducts.length) % heroProducts.length;
+  $$(".poster-carousel__card").forEach((card, index) => {
+    const position = heroPosition(index);
+    card.dataset.position = Math.abs(position) <= 1 ? String(position) : "hidden";
+    card.setAttribute("aria-hidden", String(Math.abs(position) > 1));
+    card.tabIndex = position === 0 ? 0 : -1;
+  });
+  const product = heroProducts[heroIndex];
+  const title = cleanCopy(product.title);
+  const team = teamConfig(product.team);
+  $("#heroPosterTitle").textContent = title;
+  $("#heroPosterMeta").textContent = team?.name || categoryLabel(product.category_id);
+  $("#heroPosterIndex").textContent = `${String(heroIndex + 1).padStart(2, "0")} / ${String(heroProducts.length).padStart(2, "0")}`;
+  $("#heroPosterProgress").style.width = `${((heroIndex + 1) / heroProducts.length) * 100}%`;
+  const backdrop = $("#heroPosterBackdrop");
+  backdrop.classList.remove("is-ready");
+  backdrop.src = productDetailImage(product);
+  backdrop.onload = () => backdrop.classList.add("is-ready");
+  updateHeroPalette(product);
+  if (restart) restartHeroAutoplay();
+}
+
+function restartHeroAutoplay() {
+  clearInterval(heroTimer);
+  if (heroProducts.length < 2 || document.hidden || matchMedia("(prefers-reduced-motion: reduce)").matches || document.documentElement.classList.contains("telegram-mode")) return;
+  heroTimer = setInterval(() => setHeroIndex(heroIndex + 1, false), 6000);
+}
+
+function bindHeroCarousel() {
+  const host = $("#heroPosterCarousel");
+  if (host.dataset.bound) return;
+  host.dataset.bound = "true";
+  let pointerId = null;
+  let pointerStart = 0;
+
+  const finishDrag = (event) => {
+    if (pointerId == null || (event.pointerId != null && event.pointerId !== pointerId)) return;
+    const distance = event.clientX - pointerStart;
+    host.style.setProperty("--drag-x", "0px");
+    host.classList.remove("is-dragging");
+    if (Math.abs(distance) > 42) {
+      heroDragged = true;
+      setHeroIndex(heroIndex + (distance < 0 ? 1 : -1));
+      setTimeout(() => { heroDragged = false; }, 0);
+    }
+    pointerId = null;
+  };
+
+  host.addEventListener("pointerdown", (event) => {
+    pointerId = event.pointerId;
+    pointerStart = event.clientX;
+    host.setPointerCapture?.(event.pointerId);
+    host.classList.add("is-dragging");
+    clearInterval(heroTimer);
+  });
+  host.addEventListener("pointermove", (event) => {
+    if (event.pointerId !== pointerId) return;
+    host.style.setProperty("--drag-x", `${Math.max(-80, Math.min(80, event.clientX - pointerStart))}px`);
+  });
+  host.addEventListener("pointerup", finishDrag);
+  host.addEventListener("pointercancel", finishDrag);
+  host.addEventListener("click", (event) => {
+    const card = event.target.closest("[data-hero-index]");
+    if (!card || heroDragged) return;
+    const index = Number(card.dataset.heroIndex);
+    if (index !== heroIndex) setHeroIndex(index);
+    else openProduct(heroProducts[index].id);
+  });
+  host.addEventListener("pointermove", (event) => {
+    if (!matchMedia("(hover: hover) and (pointer: fine)").matches || document.documentElement.classList.contains("telegram-mode")) return;
+    const active = host.querySelector('[data-position="0"]');
+    if (!active) return;
+    const rect = active.getBoundingClientRect();
+    const x = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+    const y = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height));
+    active.style.setProperty("--tilt-x", `${((0.5 - y) * 6).toFixed(2)}deg`);
+    active.style.setProperty("--tilt-y", `${((x - 0.5) * 7).toFixed(2)}deg`);
+    active.style.setProperty("--light-x", `${(x * 100).toFixed(1)}%`);
+    active.style.setProperty("--light-y", `${(y * 100).toFixed(1)}%`);
+  });
+  host.addEventListener("pointerleave", () => {
+    const active = host.querySelector('[data-position="0"]');
+    active?.style.removeProperty("--tilt-x");
+    active?.style.removeProperty("--tilt-y");
+    restartHeroAutoplay();
+  });
+  $("#heroPrev").addEventListener("click", () => setHeroIndex(heroIndex - 1));
+  $("#heroNext").addEventListener("click", () => setHeroIndex(heroIndex + 1));
+  $("#heroPosterTitle").addEventListener("click", () => openProduct(heroProducts[heroIndex]?.id));
+  document.addEventListener("visibilitychange", restartHeroAutoplay);
+}
+
+function updateHeroPalette(product) {
+  const requestId = ++heroColorRequest;
+  const fallback = teamConfig(product.team)?.colors || { primary: "#e10600", secondary: "#111318", accent: "#f1d74b" };
+  const apply = (colors) => {
+    if (requestId !== heroColorRequest) return;
+    const root = document.documentElement;
+    root.style.setProperty("--hero-color-a", colors[0] || fallback.primary);
+    root.style.setProperty("--hero-color-b", colors[1] || fallback.secondary);
+    root.style.setProperty("--hero-color-c", colors[2] || fallback.accent);
+  };
+  const image = new Image();
+  image.crossOrigin = "anonymous";
+  image.onload = () => {
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = 36;
+      canvas.height = 36;
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+      const buckets = new Map();
+      for (let offset = 0; offset < pixels.length; offset += 16) {
+        const r = pixels[offset]; const g = pixels[offset + 1]; const b = pixels[offset + 2]; const a = pixels[offset + 3];
+        const max = Math.max(r, g, b); const min = Math.min(r, g, b); const light = (max + min) / 2;
+        if (a < 180 || light < 18 || light > 238) continue;
+        const key = `${Math.round(r / 32) * 32},${Math.round(g / 32) * 32},${Math.round(b / 32) * 32}`;
+        const saturation = max - min;
+        buckets.set(key, (buckets.get(key) || 0) + 1 + saturation / 80);
+      }
+      const ranked = [...buckets.entries()].sort((a, b) => b[1] - a[1]).map(([key]) => key.split(",").map(Number));
+      const selected = [];
+      for (const color of ranked) {
+        if (selected.every((other) => Math.hypot(color[0] - other[0], color[1] - other[1], color[2] - other[2]) > 72)) selected.push(color);
+        if (selected.length === 3) break;
+      }
+      apply(selected.map((color) => `rgb(${color.join(" ")})`));
+    } catch {
+      apply([]);
+    }
+  };
+  image.onerror = () => apply([]);
+  image.src = productDetailImage(product);
 }
 
 function renderTeamGrid() {
@@ -372,7 +536,7 @@ function renderCategoryShowcase() {
   host.innerHTML = categories.map((category) => {
     const representative = products.find((product) => String(product.category_id) === String(category.id));
     const image = asset(category.image) || (representative ? productImage(representative) : FALLBACKS.poster);
-    return `<button class="category-tile" type="button" data-category-showcase="${category.id}"><img src="${escapeHtml(image)}" data-fallback="${fallbackFor(representative || {})}" alt="${escapeHtml(cleanCopy(category.name))}" loading="lazy" /><span class="category-tile__copy"><span>${escapeHtml(cleanCopy(category.description || "Коллекция"))}</span><strong>${escapeHtml(cleanCopy(category.name))}</strong></span></button>`;
+    return `<a class="category-tile" href="category.html?id=${category.id}"><img src="${escapeHtml(image)}" data-fallback="${fallbackFor(representative || {})}" alt="${escapeHtml(cleanCopy(category.name))}" loading="lazy" /><span class="category-tile__copy"><span>${escapeHtml(cleanCopy(category.description || "Коллекция"))}</span><strong>${escapeHtml(cleanCopy(category.name))}</strong></span></a>`;
   }).join("");
 }
 
@@ -392,13 +556,13 @@ function renderSocialGrid() {
   const host = $("#socialGrid");
   if (!host) return;
   const social = [
-    { key: "tiktok", label: siteCopy("site_social_tiktok"), url: settings.social_tiktok_url, background: settings.social_tiktok_background, foreground: settings.social_tiktok_foreground },
-    { key: "instagram", label: siteCopy("site_social_instagram"), url: settings.social_instagram_url, background: settings.social_instagram_background, foreground: settings.social_instagram_foreground },
+    { key: "tiktok", label: siteCopy("site_social_tiktok"), url: settings.social_tiktok_url, background: settings.social_tiktok_background || settings.team_mclaren_background, foreground: settings.social_tiktok_foreground || settings.team_mclaren_foreground },
+    { key: "instagram", label: siteCopy("site_social_instagram"), url: settings.social_instagram_url, background: settings.social_instagram_background || settings.team_mclaren_background, foreground: settings.social_instagram_foreground || settings.team_mclaren_foreground },
   ];
-  host.innerHTML = social.map((item) => `<a class="social-card" href="${escapeHtml(safeExternalUrl(item.url))}" target="_blank" rel="noopener noreferrer">
+  host.innerHTML = social.map((item, index) => `<a class="social-card social-card--${item.key} ${index ? "social-card--mirrored" : ""}" href="${escapeHtml(safeExternalUrl(item.url))}" target="_blank" rel="noopener noreferrer">
     ${item.background ? `<img class="social-card__background" src="${escapeHtml(asset(item.background))}" alt="" loading="lazy" />` : ""}
     ${item.foreground ? `<img class="social-card__foreground" src="${escapeHtml(asset(item.foreground))}" alt="" loading="lazy" />` : ""}
-    <span class="social-card__copy"><span>${escapeHtml(siteCopy("site_social_kicker"))}</span><strong>${escapeHtml(item.label)}</strong></span>
+    <span class="social-card__copy"><span>${escapeHtml(siteCopy("site_social_kicker"))}</span><strong>${escapeHtml(item.label)}</strong><i>${escapeHtml(siteCopy("site_social_open_profile") || "Открыть профиль")} →</i></span>
   </a>`).join("");
 }
 
@@ -479,21 +643,24 @@ function renderProducts() {
 
  $("#products").innerHTML = visible.map((product, index) => {
    const title = cleanCopy(product.title);
-   const fallback = fallbackFor(product);
     const custom = Boolean(product.is_custom);
-    const price = custom ? `${siteCopy("site_price_on_request")}${product.custom_price ? ` · ${money(product.custom_price)}` : ""}` : money(product.price);
+    const price = custom && product.custom_price ? `От ${money(product.custom_price)}` : money(product.price);
    return `
       <article class="product-card reveal reveal--clip" style="--reveal-delay:${Math.min(index, 7) * 45}ms">
         <button class="product-card__media" type="button" data-product="${product.id}" aria-label="Открыть ${escapeHtml(title)}">
           <span class="product-card__lap">P${String(index + 1).padStart(2, "0")}</span>
           ${product.is_weekly_discount ? `<span class="discount-flag">${escapeHtml(siteCopy("site_discount_badge"))}</span>` : ""}
-          <img src="${escapeHtml(productImage(product))}" data-fallback="${fallback}" alt="${escapeHtml(title)}" loading="lazy" />
+          ${productMediaMarkup(product, title)}
         </button>
         <div class="product-card__body">
           <p class="product-card__category">${escapeHtml(categoryLabel(product.category_id))}</p>
           <h3>${escapeHtml(title)}</h3>
-          <button class="product-card__buy" type="button" data-${custom ? "product" : "add-product"}="${product.id}" aria-label="${escapeHtml(custom ? siteCopy("site_custom_product_button") : siteCopy("site_add_to_cart"))}: ${escapeHtml(title)}" title="${escapeHtml(custom ? siteCopy("site_custom_product_button") : siteCopy("site_add_to_cart"))}">${custom ? "?" : "+"}</button>
-          <div class="price-row"><strong>${escapeHtml(price)}</strong>${!custom && product.old_price ? `<s>${money(product.old_price)}</s>` : ""}</div>
+          ${custom ? `<div class="custom-price-control" data-price-control>
+            <button class="custom-price-control__reveal" type="button" data-reveal-price="${product.id}">${escapeHtml(siteCopy("site_custom_product_button"))}</button>
+            <strong class="custom-price-control__price hidden">${escapeHtml(price)}</strong>
+            <a class="custom-price-control__manager hidden" href="${escapeHtml(normalizeManagerUrl())}" target="_blank" rel="noreferrer">Обсудить с менеджером</a>
+          </div>` : `<button class="product-card__buy" type="button" data-add-product="${product.id}" aria-label="${escapeHtml(siteCopy("site_add_to_cart"))}: ${escapeHtml(title)}" title="${escapeHtml(siteCopy("site_add_to_cart"))}">+</button>
+            <div class="price-row"><strong>${escapeHtml(price)}</strong>${product.old_price ? `<s>${money(product.old_price)}</s>` : ""}</div>`}
         </div>
       </article>
     `;
@@ -517,9 +684,13 @@ function openProduct(id) {
   $("#productCode").textContent = `${teamConfig(currentProduct.team)?.name || categoryLabel(currentProduct.category_id)} / P${String(currentProduct.id).padStart(3, "0")}`;
   $("#productTitle").textContent = cleanCopy(currentProduct.title);
   $("#productDescription").textContent = cleanCopy(currentProduct.description) || "Подробности по этой позиции можно уточнить у менеджера.";
-  $("#productPrice").textContent = currentProduct.is_custom ? `${siteCopy("site_price_on_request")}${currentProduct.custom_price ? ` · ${money(currentProduct.custom_price)}` : ""}` : money(currentProduct.price);
+  $("#productPrice").textContent = currentProduct.is_custom && currentProduct.custom_price ? `От ${money(currentProduct.custom_price)}` : money(currentProduct.price);
+  $("#productPrice").classList.toggle("hidden", Boolean(currentProduct.is_custom));
   $("#productOldPrice").textContent = !currentProduct.is_custom && currentProduct.old_price ? money(currentProduct.old_price) : "";
   $("#addToCart").textContent = currentProduct.is_custom ? siteCopy("site_custom_product_button") : siteCopy("site_add_to_cart");
+  $("#addToCart").classList.remove("hidden");
+  $("#productManagerLink").classList.add("hidden");
+  $("#productManagerLink").href = normalizeManagerUrl();
   openDialog($("#productDialog"));
 }
 
@@ -545,8 +716,9 @@ function addProduct(product, quantity = 1) {
 function addCurrentProduct() {
   if (!currentProduct) return;
   if (currentProduct.is_custom) {
-    window.open(normalizeManagerUrl(), "_blank", "noopener");
-    closeDialog($("#productDialog"));
+    $("#productPrice").classList.remove("hidden");
+    $("#addToCart").classList.add("hidden");
+    $("#productManagerLink").classList.remove("hidden");
     return;
   }
   addProduct(currentProduct);
@@ -564,6 +736,7 @@ function renderCart() {
   saveCart();
   const { count, total } = cartTotals();
   $("#headerCartCount").textContent = count;
+  $("#telemetryCartCount").textContent = count;
   $("#cartCount").textContent = `${count} ${declension(count, ["товар", "товара", "товаров"])}`;
   $("#cartTotal").textContent = money(total);
   $("#cartSheetTotal").textContent = money(total);
@@ -667,20 +840,56 @@ function initMotion() {
   const root = document.documentElement;
   const hero = $(".hero");
   const header = $(".site-header");
+  const scenes = $$('[data-motion-scene]');
+  const telemetryLabel = $("#telemetryLabel");
+  const telemetryCode = $("#telemetryCode");
+  const telemetryVelocity = $("#telemetryVelocity");
+  const telemetryProgress = $("#telemetryProgress");
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
   let frame = 0;
   let previousY = window.scrollY;
+  let previousTime = performance.now();
+  let smoothVelocity = 0;
+  let activeScene = "";
 
-  const update = () => {
+  const update = (now = performance.now()) => {
     frame = 0;
     const y = window.scrollY;
     const maxScroll = Math.max(1, document.documentElement.scrollHeight - innerHeight);
     const heroProgress = Math.min(1, Math.max(0, y / Math.max(1, hero.offsetHeight)));
-    root.style.setProperty("--page-progress", String(y / maxScroll));
+    const pageProgress = y / maxScroll;
+    const deltaTime = Math.max(16, now - previousTime);
+    const rawVelocity = Math.min(1800, Math.abs(y - previousY) / deltaTime * 1000);
+    smoothVelocity += (rawVelocity - smoothVelocity) * 0.18;
+    root.style.setProperty("--page-progress", String(pageProgress));
     root.style.setProperty("--hero-progress", String(heroProgress));
     root.style.setProperty("--scroll-direction", String(Math.sign(y - previousY)));
+    root.style.setProperty("--scroll-velocity", String(reducedMotion ? 0 : smoothVelocity));
     header.classList.toggle("scrolled", y > 24);
+
+    let nearest = null;
+    let nearestDistance = Infinity;
+    scenes.forEach((scene) => {
+      const rect = scene.getBoundingClientRect();
+      const progress = Math.max(0, Math.min(1, (innerHeight - rect.top) / (innerHeight + rect.height)));
+      scene.style.setProperty("--scene-progress", String(progress));
+      const distance = Math.abs(rect.top + rect.height * 0.5 - innerHeight * 0.52);
+      if (rect.bottom > 0 && rect.top < innerHeight && distance < nearestDistance) {
+        nearest = scene;
+        nearestDistance = distance;
+      }
+    });
+
+    if (nearest && activeScene !== nearest.dataset.sceneCode) {
+      activeScene = nearest.dataset.sceneCode;
+      telemetryCode.textContent = activeScene;
+      telemetryLabel.textContent = nearest.dataset.sceneLabel;
+      document.body.dataset.activeScene = activeScene;
+    }
+    telemetryVelocity.textContent = String(Math.round(smoothVelocity)).padStart(3, "0");
+    telemetryProgress.style.transform = `scaleX(${pageProgress})`;
     previousY = y;
+    previousTime = now;
   };
 
   const requestUpdate = () => {
@@ -708,6 +917,15 @@ function initMotion() {
     });
   });
 }
+
+document.addEventListener("click", (event) => {
+  const reveal = event.target.closest("[data-reveal-price]");
+  if (!reveal) return;
+  const control = reveal.closest("[data-price-control]");
+  reveal.classList.add("hidden");
+  control?.querySelector(".custom-price-control__price")?.classList.remove("hidden");
+  control?.querySelector(".custom-price-control__manager")?.classList.remove("hidden");
+});
 
 $("#tabs").addEventListener("click", (event) => {
   const button = event.target.closest("[data-category]");
@@ -739,7 +957,7 @@ $("#products").addEventListener("click", (event) => {
   }
 });
 
-[$("#heroPosterCarousel"), $("#discountGrid"), $("#customGrid")].filter(Boolean).forEach((host) => {
+[$("#discountGrid"), $("#customGrid")].filter(Boolean).forEach((host) => {
   host.addEventListener("click", (event) => {
     const productButton = event.target.closest("[data-product]");
     const addButton = event.target.closest("[data-add-product]");

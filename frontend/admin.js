@@ -35,7 +35,7 @@ const SITE_COPY_DEFAULTS = {
   site_categories_kicker: "Коллекции", site_categories_title: "Выберите свой формат", site_categories_text: "Постеры, конструкторы, одежда и авторские иллюстрации с темпом гоночного уикенда.",
   site_discounts_kicker: "Текущий круг", site_discounts_title: "Скидки недели", site_discounts_button: "Смотреть все",
   site_custom_kicker: "Своя траектория", site_custom_title: "Кастомные работы", site_custom_text: "Выберите готовую основу или расскажите идею менеджеру: формат, команду, пилота и настроение работы.",
-  site_social_kicker: "Вне трассы", site_social_title: "Следите за новыми работами", site_social_tiktok: "TikTok", site_social_instagram: "Instagram",
+  site_social_kicker: "Вне трассы", site_social_title: "Следите за новыми работами", site_social_tiktok: "TikTok", site_social_instagram: "Instagram", site_social_open_profile: "Открыть профиль",
   site_product_kicker: "Коллекция F1 Posters", site_custom_product_button: "Оставить заявку", site_price_on_request: "Цена по запросу",
 };
 
@@ -43,6 +43,7 @@ const $ = (s) => document.querySelector(s);
 const money = (v) => `${new Intl.NumberFormat("ru-RU").format(v || 0)} ₽`;
 const asset = (url) => url ? (url.startsWith("http") ? url : `${API}${url}`) : "";
 const headers = () => ({ "Content-Type": "application/json", Authorization: `Bearer ${token}` });
+const escapeHtml = (value = "") => String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
 
 window.addEventListener("unhandledrejection", (event) => {
   event.preventDefault();
@@ -215,6 +216,10 @@ function renderTeamMediaSlots() {
       <label class="field">Логотип<input type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml" data-upload="team-logos" data-target="${key}_logo" /><input name="${key}_logo" /></label>
       <label class="field">Фон<input type="file" accept="image/jpeg,image/png,image/webp" data-upload="teams" data-target="${key}_background" data-original-target="${key}_background_original" /><input name="${key}_background" /><input name="${key}_background_original" type="hidden" /></label>
       <label class="field">Передний слой<input type="file" accept="image/jpeg,image/png,image/webp" data-upload="teams" data-target="${key}_foreground" data-original-target="${key}_foreground_original" /><input name="${key}_foreground" /><input name="${key}_foreground_original" type="hidden" /></label>
+      <label class="field">Основание / Founded<textarea name="${key}_founded" rows="3">${escapeHtml(team.details?.founded || "")}</textarea></label>
+      <label class="field">История / History<textarea name="${key}_history" rows="5">${escapeHtml(team.details?.history || "")}</textarea></label>
+      <label class="field">Достижения / Achievements<textarea name="${key}_achievements" rows="4">${escapeHtml(team.details?.achievements || "")}</textarea></label>
+      <label class="field">Легенды / Legends<textarea name="${key}_legends" rows="3">${escapeHtml(team.details?.legends || "")}</textarea></label>
     </article>`;
   }).join("");
 }
@@ -247,7 +252,7 @@ async function loadProducts() {
   $("#productsTable").innerHTML = products.map((p) => {
     const category = categories.find((c) => c.id === p.category_id);
     const subcategory = subcategories.find((c) => c.id === p.subcategory_id);
-    return `<tr><td><img class="thumb" src="${asset(p.cover_image || p.image)}" /></td><td>${p.title}<small>${[p.team, p.is_custom ? "Кастом" : "", p.is_draft ? "Черновик" : ""].filter(Boolean).join(" · ")}</small></td><td>${category?.name || ""}</td><td>${subcategory?.name || "Без подкатегории"}</td><td>${p.is_custom ? "По запросу" : money(p.price)}</td><td>${p.is_available ? "В наличии" : "Нет в наличии"}</td><td><button onclick="editProduct(${p.id})">Изменить</button><button onclick="deleteProduct(${p.id})">Удалить</button></td></tr>`;
+    return `<tr><td><img class="thumb" src="${asset(p.cover_image || p.image)}" /></td><td>${p.title}<small>${[p.team, p.show_in_hero ? "Главная карусель" : "", p.is_custom ? "Кастом" : "", p.is_draft ? "Черновик" : ""].filter(Boolean).join(" · ")}</small></td><td>${category?.name || ""}</td><td>${subcategory?.name || "Без подкатегории"}</td><td>${p.is_custom ? "По запросу" : money(p.price)}</td><td>${p.is_available ? "В наличии" : "Нет в наличии"}</td><td><button onclick="editProduct(${p.id})">Изменить</button><button onclick="deleteProduct(${p.id})">Удалить</button></td></tr>`;
   }).join("");
 }
 
@@ -277,6 +282,11 @@ async function loadSettings() {
     [...form.elements].forEach((el) => {
       if (el.name && settings[el.name] != null) el.value = settings[el.name];
       else if (form.id === "contentForm" && el.name && SITE_COPY_DEFAULTS[el.name] != null) el.value = SITE_COPY_DEFAULTS[el.name];
+      else if (form.id === "teamMediaForm" && el.name) {
+        const match = el.name.match(/^team_(.+)_(founded|history|achievements|legends)$/);
+        const defaultTeam = match ? teams.find((team) => team.slug === match[1]) : null;
+        if (defaultTeam?.details?.[match[2]]) el.value = defaultTeam.details[match[2]];
+      }
     });
   }
 }
@@ -325,7 +335,7 @@ window.editProduct = async (id) => {
   f.cover_image.value = p.cover_image || p.image || ""; f.main_image.value = p.main_image || p.image || "";
   f.original_cover_image.value = p.original_cover_image || ""; f.original_main_image.value = p.original_main_image || "";
   f.is_custom.checked = !!p.is_custom; f.custom_price.value = p.custom_price || ""; f.product_size.value = p.product_size || ""; f.lego_set.value = p.lego_set || ""; f.project_name.value = p.project_name || ""; f.custom_type.value = p.custom_type || ""; f.includes_frame.checked = !!p.includes_frame; f.includes_mount.checked = !!p.includes_mount;
-  f.is_weekly_discount.checked = !!p.is_weekly_discount; f.is_available.checked = !!p.is_available; f.is_draft.checked = !!p.is_draft; f.sort_order.value = p.sort_order || 0;
+  f.show_in_hero.checked = !!p.show_in_hero; f.is_weekly_discount.checked = !!p.is_weekly_discount; f.is_available.checked = !!p.is_available; f.is_draft.checked = !!p.is_draft; f.sort_order.value = p.sort_order || 0;
   openOverlay("productModal");
 };
 
@@ -402,7 +412,7 @@ $("#productForm").onsubmit = async (e) => {
     original_cover_image: f.original_cover_image.value, original_main_image: f.original_main_image.value, team: f.team.value, is_custom: f.is_custom.checked,
     custom_price: f.custom_price.value ? Number(f.custom_price.value) : null, product_size: f.product_size.value, lego_set: f.lego_set.value, project_name: f.project_name.value, custom_type: f.custom_type.value,
     includes_frame: f.includes_frame.checked, includes_mount: f.includes_mount.checked,
-    is_weekly_discount: f.is_weekly_discount.checked, is_available: f.is_available.checked, is_draft: f.is_draft.checked, sort_order: Number(f.sort_order.value) || 0,
+    show_in_hero: f.show_in_hero.checked, is_weekly_discount: f.is_weekly_discount.checked, is_available: f.is_available.checked, is_draft: f.is_draft.checked, sort_order: Number(f.sort_order.value) || 0,
   };
   await api(f.id.value ? `/api/products/${f.id.value}` : "/api/products", { method: f.id.value ? "PUT" : "POST", body: JSON.stringify(payload) });
   closeOverlay("productModal"); loadProducts();

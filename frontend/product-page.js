@@ -52,7 +52,12 @@ function showToast(message) {
 }
 
 function addToCart() {
-  if (product.is_custom) { window.open(managerUrl(), "_blank", "noopener"); return; }
+  if (product.is_custom) {
+    $("#productPrice").classList.remove("hidden");
+    $("#managerLink").classList.remove("hidden");
+    $("#productAction").classList.add("hidden");
+    return;
+  }
   const cart = getCart();
   const item = cart.find((entry) => String(entry.product_id) === String(product.id));
   if (item) item.quantity = Math.min(99, (Number(item.quantity) || 0) + 1);
@@ -73,11 +78,13 @@ function render() {
   $("#productDescription").textContent = cleanCopy(product.description) || "Подробности по этой работе можно уточнить у менеджера.";
   $("#productKicker").textContent = team?.name || category?.name || settings.site_product_kicker || "Коллекция F1 Posters";
   $("#productPrice").textContent = product.is_custom ? (product.custom_price ? `От ${money(product.custom_price)}` : settings.site_price_on_request || "Цена по запросу") : money(product.price);
+  $("#productPrice").classList.toggle("hidden", Boolean(product.is_custom));
   $("#productOldPrice").textContent = !product.is_custom && product.old_price ? money(product.old_price) : "";
-  $("#productAction").textContent = product.is_custom ? settings.site_custom_product_button || "Оставить заявку" : settings.site_add_to_cart || "Добавить в корзину";
+  $("#productAction").textContent = product.is_custom ? settings.site_custom_product_button || "Узнать цену" : settings.site_add_to_cart || "Добавить в корзину";
   $("#productSpecs").innerHTML = [spec("Команда", team?.name), spec("Категория", category?.name), spec("Размер", product.product_size), spec("Набор LEGO", product.lego_set), spec("Проект", product.project_name), spec("Тип", product.custom_type), spec("Рамка", product.includes_frame ? "В комплекте" : ""), spec("Крепление", product.includes_mount ? "В комплекте" : "")].join("");
   if (team) $("#productBack").href = `team.html?team=${encodeURIComponent(team.slug)}`;
   $("#managerLink").href = managerUrl();
+  $("#managerLink").classList.toggle("hidden", Boolean(product.is_custom));
   document.title = `${title} — F1 Posters`;
   document.querySelector('meta[name="description"]').content = cleanCopy(product.description || title).slice(0, 155);
 }

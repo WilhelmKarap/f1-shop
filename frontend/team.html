@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#101216" />
     <meta name="description" content="Коллекция F1 Posters по командам Формулы 1." />
-    <title>Команда — F1 Posters</title>
-    <link rel="stylesheet" href="catalog-pages.css?v=20260810-2" />
+    <title>Команда | F1 Posters</title>
+    <link rel="stylesheet" href="catalog-pages.css?v=20260810-3" />
   </head>
   <body class="team-page">
     <header class="page-header">
@@ -14,18 +14,35 @@
       <nav><a href="index.html#teams">Команды</a><a href="index.html#catalog">Каталог</a><a class="page-cart" href="index.html#catalog">Корзина <b id="cartCount">0</b></a></nav>
     </header>
     <main>
-      <section class="team-hero" id="teamHero">
-        <img class="team-hero__background hidden" id="teamBackground" alt="" />
-        <img class="team-hero__foreground hidden" id="teamForeground" alt="" />
-        <div class="team-hero__content">
-          <a class="back-link" href="index.html#teams">← Все команды</a>
-          <img class="team-hero__logo hidden" id="teamLogo" alt="" />
-          <p>Коллекция команды</p>
-          <h1 id="teamName">F1 Posters</h1>
-          <div class="driver-list" id="teamDrivers"></div>
+      <section class="team-story" id="teamStory">
+        <div class="team-story__stage" id="teamHero">
+          <div class="team-story__fallback"></div>
+          <img class="team-story__background hidden" id="teamBackground" alt="" />
+          <div class="team-story__tint"></div>
+          <img class="team-story__foreground hidden" id="teamForeground" alt="" />
+          <div class="team-story__shade"></div>
+
+          <a class="back-link team-story__back" href="index.html#teams">← Все команды</a>
+          <div class="team-story__meter" aria-hidden="true"><span>TEAM</span><i><b></b></i><span id="teamMeterValue">000</span></div>
+
+          <div class="team-story__identity team-story__copy">
+            <img class="team-story__logo hidden" id="teamLogo" alt="" />
+            <p>Коллекция команды</p>
+            <h1 id="teamName">F1 Posters</h1>
+            <div class="driver-list" id="teamDrivers"></div>
+          </div>
+
+          <dl class="team-story__facts team-story__copy">
+            <div><dt>Founded</dt><dd id="teamFounded"></dd></div>
+            <div><dt>History</dt><dd id="teamHistory"></dd></div>
+            <div><dt>Achievements</dt><dd id="teamAchievements"></dd></div>
+            <div><dt>Legends</dt><dd id="teamLegends"></dd></div>
+          </dl>
+          <div class="team-story__scroll" aria-hidden="true"><span>Прокрутите</span><i></i></div>
         </div>
       </section>
-      <section class="listing-section">
+
+      <section class="listing-section team-listing">
         <div class="listing-heading"><p id="teamProductCount">0 товаров</p><h2>Работы команды</h2></div>
         <div class="page-product-grid" id="teamProducts"><p class="page-message">Загружаем коллекцию</p></div>
       </section>
@@ -33,7 +50,7 @@
     <footer class="page-footer"><span>F1 Posters</span><a id="managerLink" href="https://t.me/F1posters_mng" target="_blank" rel="noreferrer">Связаться с менеджером</a></footer>
     <div class="page-toast" id="toast" role="status"></div>
     <script src="config.js?v=20260810-1"></script>
-    <script src="team-design.js?v=20260810-1"></script>
-    <script src="team-page.js?v=20260810-1"></script>
+    <script src="team-design.js?v=20260810-2"></script>
+    <script src="team-page.js?v=20260810-2"></script>
   </body>
 </html>

@@ -6,7 +6,6 @@
     <meta name="theme-color" content="#101216" />
     <meta name="description" content="F1 Posters — постеры, конструкторы, одежда и авторские иллюстрации о гонках." />
     <title>F1 Posters — гоночные постеры и коллекционные вещи</title>
-    <link rel="preload" href="assets/hero-pitwall.webp" as="image" type="image/webp" />
     <script>
       (() => {
         const context = `${location.search}${location.hash}${navigator.userAgent}`;
@@ -47,8 +46,10 @@
     </header>
 
     <main>
-      <section class="hero" aria-labelledby="heroTitle">
-        <img class="hero__image" id="heroImage" src="assets/hero-pitwall.webp" alt="Гоночный болид в пит-лейне после дождя" fetchpriority="high" />
+      <section class="hero" aria-labelledby="heroTitle" data-motion-scene data-scene-label="Старт" data-scene-code="00">
+        <img class="hero__image" id="heroImage" src="assets/hero-pitwall.webp" alt="" fetchpriority="high" />
+        <img class="hero__poster-backdrop" id="heroPosterBackdrop" alt="" />
+        <div class="hero__gradient"></div>
         <div class="hero__shade"></div>
         <div class="hero__grid container">
           <div class="hero__copy reveal">
@@ -61,7 +62,16 @@
             </div>
           </div>
 
-          <div class="poster-carousel reveal" id="heroPosterCarousel" aria-label="Избранные постеры"></div>
+          <div class="hero-showcase reveal" aria-roledescription="карусель" aria-label="Избранные товары">
+            <button class="carousel-arrow carousel-arrow--prev" id="heroPrev" type="button" aria-label="Предыдущий товар">←</button>
+            <div class="poster-carousel" id="heroPosterCarousel"></div>
+            <button class="carousel-arrow carousel-arrow--next" id="heroNext" type="button" aria-label="Следующий товар">→</button>
+            <div class="hero-showcase__caption" aria-live="polite">
+              <span id="heroPosterMeta">Коллекция</span>
+              <button id="heroPosterTitle" type="button">Выберите постер</button>
+              <div class="hero-showcase__progress"><i id="heroPosterProgress"></i><b id="heroPosterIndex">01 / 01</b></div>
+            </div>
+          </div>
 
           <div class="hero__telemetry" aria-label="Информация о магазине">
             <div><span data-setting="site_metric_products">Товары</span><strong id="heroProductCount">--</strong></div>
@@ -72,15 +82,15 @@
         <a class="hero__scroll" href="#catalog"><span>Следующий сектор</span><i aria-hidden="true"></i></a>
       </section>
 
-      <div class="motion-progress" aria-hidden="true"><span></span></div>
-
-      <nav class="sector-rail" aria-label="Разделы страницы">
-        <a class="active" href="#catalog" data-sector="catalog"><span>S1</span><b>Каталог</b></a>
-        <a href="#delivery" data-sector="delivery"><span>S2</span><b>Условия</b></a>
-        <button type="button" data-sector="order" id="sectorCart"><span>S3</span><b>Заказ</b></button>
+      <nav class="telemetry-ribbon" id="telemetryRibbon" aria-label="Телеметрия страницы">
+        <span class="telemetry-ribbon__code" id="telemetryCode">00</span>
+        <span class="telemetry-ribbon__track" aria-hidden="true"><i id="telemetryProgress"></i></span>
+        <span class="telemetry-ribbon__label" id="telemetryLabel">Старт</span>
+        <span class="telemetry-ribbon__speed"><b id="telemetryVelocity">000</b><small>SCR</small></span>
+        <button type="button" id="sectorCart" aria-label="Открыть корзину">PIT <b id="telemetryCartCount">0</b></button>
       </nav>
 
-      <section class="team-section" id="teams" aria-labelledby="teamsTitle">
+      <section class="team-section" id="teams" aria-labelledby="teamsTitle" data-motion-scene data-scene-label="Команды" data-scene-code="01">
         <div class="container section-heading section-heading--light reveal">
           <p class="kicker" data-setting="site_teams_kicker">Паддок 2026</p>
           <h2 id="teamsTitle" data-setting="site_teams_title">Команды</h2>
@@ -89,7 +99,7 @@
         <div class="team-grid container" id="teamGrid"></div>
       </section>
 
-      <section class="category-showcase" id="categories" aria-labelledby="categoriesTitle">
+      <section class="category-showcase" id="categories" aria-labelledby="categoriesTitle" data-motion-scene data-scene-label="Категории" data-scene-code="02">
         <div class="container section-heading reveal">
           <p class="kicker kicker--dark" data-setting="site_categories_kicker">Коллекции</p>
           <h2 id="categoriesTitle" data-setting="site_categories_title">Выберите свой формат</h2>
@@ -98,7 +108,7 @@
         <div class="category-showcase__grid container" id="categoryShowcaseGrid"></div>
       </section>
 
-      <section class="discount-section" id="discounts" aria-labelledby="discountTitle">
+      <section class="discount-section" id="discounts" aria-labelledby="discountTitle" data-motion-scene data-scene-label="Скидки" data-scene-code="03">
         <div class="container section-heading section-heading--split reveal">
           <div><p class="kicker" data-setting="site_discounts_kicker">Текущий круг</p><h2 id="discountTitle" data-setting="site_discounts_title">Скидки недели</h2></div>
           <a class="text-link" href="#catalog" data-nav-category="weekly"><span data-setting="site_discounts_button">Смотреть все</span> <i aria-hidden="true">→</i></a>
@@ -106,7 +116,7 @@
         <div class="premium-product-grid container" id="discountGrid"></div>
       </section>
 
-      <section class="catalog-section" id="catalog" aria-labelledby="catalogTitle">
+      <section class="catalog-section" id="catalog" aria-labelledby="catalogTitle" data-motion-scene data-scene-label="Каталог" data-scene-code="04">
         <h2 class="sr-only" id="catalogTitle">Каталог</h2>
         <div class="catalog-controls container">
           <div class="category-tabs" id="tabs" role="tablist" aria-label="Категории товаров"></div>
@@ -141,7 +151,7 @@
         </section>
       </section>
 
-      <section class="custom-section" id="custom" aria-labelledby="customTitle">
+      <section class="custom-section" id="custom" aria-labelledby="customTitle" data-motion-scene data-scene-label="Кастом" data-scene-code="05">
         <div class="container custom-section__copy reveal">
           <p class="kicker" data-setting="site_custom_kicker">Своя траектория</p>
           <h2 id="customTitle" data-setting="site_custom_title">Кастомные работы</h2>
@@ -151,12 +161,12 @@
         <div class="premium-product-grid custom-section__grid container" id="customGrid"></div>
       </section>
 
-      <section class="social-section" id="social" aria-labelledby="socialTitle">
+      <section class="social-section" id="social" aria-labelledby="socialTitle" data-motion-scene data-scene-label="Соцсети" data-scene-code="06">
         <div class="container section-heading reveal"><p class="kicker kicker--dark" data-setting="site_social_kicker">Вне трассы</p><h2 id="socialTitle" data-setting="site_social_title">Следите за новыми работами</h2></div>
         <div class="social-grid container" id="socialGrid"></div>
       </section>
 
-      <section class="delivery-band" id="delivery" aria-labelledby="deliveryTitle">
+      <section class="delivery-band" id="delivery" aria-labelledby="deliveryTitle" data-motion-scene data-scene-label="Доставка" data-scene-code="07">
         <div class="delivery-band__flag" aria-hidden="true"></div>
         <div class="container delivery-layout">
           <div class="section-index section-index--light"><span>S2</span><i></i><span>02</span></div>
@@ -188,7 +198,7 @@
         </div>
       </section>
 
-      <section class="finish-section">
+      <section class="finish-section" data-motion-scene data-scene-label="Финиш" data-scene-code="08">
         <div class="container finish-layout reveal reveal--clip">
           <p class="finish-number" aria-hidden="true">F1</p>
           <div>
@@ -243,6 +253,7 @@
         <div class="product-dialog__footer">
           <div class="price-row"><strong id="productPrice"></strong><s id="productOldPrice"></s></div>
           <button class="button button--signal" id="addToCart" type="button" data-setting="site_add_to_cart">Добавить в корзину</button>
+          <a class="button button--dark hidden" id="productManagerLink" href="https://t.me/F1posters_mng" target="_blank" rel="noreferrer" data-setting="site_finish_button">Обсудить с менеджером</a>
         </div>
       </div>
     </dialog>
