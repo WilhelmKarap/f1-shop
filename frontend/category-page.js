@@ -77,6 +77,17 @@ function productMedia(product, title) {
     <img class="page-product-card__main" src="${escapeHtml(main)}" onerror="this.src='${FALLBACK}'" alt="" loading="lazy" />`;
 }
 
+function initProductOrientations() {
+  document.querySelectorAll(".page-product-card__cover").forEach((image) => {
+    const apply = () => {
+      if (!image.naturalWidth || !image.naturalHeight) return;
+      image.closest(".page-product-card")?.classList.toggle("is-landscape", image.naturalWidth / image.naturalHeight > 1.12);
+    };
+    if (image.complete) apply();
+    else image.addEventListener("load", apply, { once: true });
+  });
+}
+
 function renderProducts() {
   const visible = activeSubcategory === "all" ? products : products.filter((product) => String(product.subcategory_id) === String(activeSubcategory));
   const currentSubcategory = subcategories.find((item) => String(item.id) === String(activeSubcategory));
@@ -93,6 +104,7 @@ function renderProducts() {
       </div>
     </article>`;
   }).join("") || `<p class="page-message">В этой подкатегории товары пока не добавлены.</p>`;
+  initProductOrientations();
 }
 
 $("#categorySubnav").addEventListener("click", (event) => {

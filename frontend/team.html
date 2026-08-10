@@ -6,7 +6,7 @@
     <meta name="theme-color" content="#101216" />
     <meta name="description" content="Коллекция F1 Posters по командам Формулы 1." />
     <title>Команда | F1 Posters</title>
-    <link rel="stylesheet" href="catalog-pages.css?v=20260810-3" />
+    <link rel="stylesheet" href="catalog-pages.css?v=20260811-1" />
   </head>
   <body class="team-page">
     <header class="page-header">
@@ -32,18 +32,18 @@
             <div class="driver-list" id="teamDrivers"></div>
           </div>
 
-          <dl class="team-story__facts team-story__copy">
-            <div><dt>Founded</dt><dd id="teamFounded"></dd></div>
-            <div><dt>History</dt><dd id="teamHistory"></dd></div>
-            <div><dt>Achievements</dt><dd id="teamAchievements"></dd></div>
-            <div><dt>Legends</dt><dd id="teamLegends"></dd></div>
-          </dl>
+          <div class="team-story__narrative team-story__copy">
+            <p id="teamFounded"></p>
+            <p id="teamHistory"></p>
+            <p id="teamAchievements"></p>
+            <p id="teamLegends"></p>
+          </div>
           <div class="team-story__scroll" aria-hidden="true"><span>Прокрутите</span><i></i></div>
         </div>
       </section>
 
       <section class="listing-section team-listing">
-        <div class="listing-heading"><p id="teamProductCount">0 товаров</p><h2>Работы команды</h2></div>
+        <div class="listing-heading"><p id="teamProductCount">0 товаров</p><h2>Товары команды</h2></div>
         <div class="page-product-grid" id="teamProducts"><p class="page-message">Загружаем коллекцию</p></div>
       </section>
     </main>
@@ -51,6 +51,6 @@
     <div class="page-toast" id="toast" role="status"></div>
     <script src="config.js?v=20260810-1"></script>
     <script src="team-design.js?v=20260810-2"></script>
-    <script src="team-page.js?v=20260810-2"></script>
+    <script src="team-page.js?v=20260811-1"></script>
   </body>
 </html>

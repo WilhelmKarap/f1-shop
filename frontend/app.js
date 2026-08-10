@@ -39,7 +39,9 @@ let heroDragged = false;
 
 const DEFAULT_COPY = {
   site_nav_catalog: "Каталог",
+  site_nav_categories: "Категории",
   site_nav_weekly: "Скидки недели",
+  site_nav_social: "Соцсети",
   site_nav_delivery: "Доставка",
   site_nav_contact: "Связаться",
   site_cart_label: "Пит-стоп",
@@ -188,6 +190,22 @@ function productMediaMarkup(product, title, loading = "lazy") {
     <img class="product-media__main" src="${escapeHtml(main)}" data-fallback="${fallback}" alt="" loading="${loading}" />`;
 }
 
+function applyProductOrientation(image) {
+  if (!image?.naturalWidth || !image?.naturalHeight) return;
+  const landscape = image.naturalWidth / image.naturalHeight > 1.12;
+  const card = image.closest(".product-card, .premium-product");
+  const media = image.closest(".product-card__media, .premium-product__media");
+  card?.classList.toggle("is-landscape", landscape);
+  media?.classList.toggle("is-landscape", landscape);
+}
+
+function initProductOrientations(root = document) {
+  root.querySelectorAll(".product-media__cover").forEach((image) => {
+    if (image.complete) applyProductOrientation(image);
+    else image.addEventListener("load", () => applyProductOrientation(image), { once: true });
+  });
+}
+
 function teamConfig(slug) {
   return window.F1_TEAM_BY_SLUG?.[slug] || window.F1_TEAM_BY_SLUG?.other || null;
 }
@@ -299,8 +317,8 @@ function renderSettings() {
   });
   $("#bannerText").textContent = siteCopy("site_hero_text");
   $("#deliveryText").textContent = cleanCopy(settings.delivery_text) || "Пункты выдачи Озон и Яндекс Маркет по России";
-  $("#heroProductCount").textContent = String(products.length).padStart(2, "0");
-  $("#heroCategoryCount").textContent = String(categories.length).padStart(2, "0");
+  if ($("#heroProductCount")) $("#heroProductCount").textContent = String(products.length).padStart(2, "0");
+  if ($("#heroCategoryCount")) $("#heroCategoryCount").textContent = String(categories.length).padStart(2, "0");
   document.title = `${shopName} — гоночные постеры и коллекционные вещи`;
 
   const telegramMode = document.documentElement.classList.contains("telegram-mode");
@@ -517,15 +535,11 @@ function renderTeamGrid() {
   const host = $("#teamGrid");
   if (!host) return;
   const teams = window.F1_TEAMS || [];
-  host.innerHTML = teams.map((team, index) => {
-    const background = teamMedia(team.slug, "background");
-    const foreground = teamMedia(team.slug, "foreground");
+  host.innerHTML = teams.map((team) => {
     const logo = teamMedia(team.slug, "logo");
     return `<a class="team-card" href="team.html?team=${encodeURIComponent(team.slug)}" style="${teamStyle(team)}">
-      ${background ? `<img class="team-card__background" src="${escapeHtml(background)}" alt="" />` : ""}
-      ${foreground ? `<img class="team-card__foreground" src="${escapeHtml(foreground)}" alt="" />` : ""}
-      <div class="team-card__top">${logo ? `<img class="team-card__logo" src="${escapeHtml(logo)}" alt="${escapeHtml(team.name)}" />` : "<span></span>"}<span class="team-card__number">${String(index + 1).padStart(2, "0")}</span></div>
-      <div><h3>${escapeHtml(team.name)}</h3>${team.drivers?.length ? `<small>${escapeHtml(team.drivers.join(" · "))}</small>` : ""}</div>
+      ${logo ? `<img class="team-card__logo" src="${escapeHtml(logo)}" alt="${escapeHtml(team.name)}" />` : `<span class="team-card__monogram">${escapeHtml(team.name.slice(0, 2))}</span>`}
+      <h3>${escapeHtml(team.name)}</h3>
     </a>`;
   }).join("");
 }
@@ -548,6 +562,8 @@ function renderPremiumSections() {
   const custom = products.filter((product) => product.is_custom).slice(0, 4);
   $("#discountGrid").innerHTML = weekly.map((product, index) => premiumProductCard(product, index, "weekly")).join("") || `<p class="muted-empty">Скоро здесь появятся новые предложения.</p>`;
   $("#customGrid").innerHTML = custom.map((product, index) => premiumProductCard(product, index, "custom")).join("") || `<p class="muted-empty">Кастомные работы добавляются через панель управления.</p>`;
+  initProductOrientations($("#discountGrid"));
+  initProductOrientations($("#customGrid"));
   renderSocialGrid();
   observeReveals(document);
 }
@@ -559,10 +575,13 @@ function renderSocialGrid() {
     { key: "tiktok", label: siteCopy("site_social_tiktok"), url: settings.social_tiktok_url, background: settings.social_tiktok_background || settings.team_mclaren_background, foreground: settings.social_tiktok_foreground || settings.team_mclaren_foreground },
     { key: "instagram", label: siteCopy("site_social_instagram"), url: settings.social_instagram_url, background: settings.social_instagram_background || settings.team_mclaren_background, foreground: settings.social_instagram_foreground || settings.team_mclaren_foreground },
   ];
+  const icon = (key) => key === "instagram"
+    ? `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"></rect><circle cx="12" cy="12" r="4"></circle><circle cx="17.5" cy="6.5" r="1"></circle></svg>`
+    : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3v11.2a4.8 4.8 0 1 1-4-4.73V13a2 2 0 1 0 1 1.73V3h3Zm0 0c.6 2.2 2 3.6 4.5 4V10A8.2 8.2 0 0 1 15 8.3"></path></svg>`;
   host.innerHTML = social.map((item, index) => `<a class="social-card social-card--${item.key} ${index ? "social-card--mirrored" : ""}" href="${escapeHtml(safeExternalUrl(item.url))}" target="_blank" rel="noopener noreferrer">
     ${item.background ? `<img class="social-card__background" src="${escapeHtml(asset(item.background))}" alt="" loading="lazy" />` : ""}
     ${item.foreground ? `<img class="social-card__foreground" src="${escapeHtml(asset(item.foreground))}" alt="" loading="lazy" />` : ""}
-    <span class="social-card__copy"><span>${escapeHtml(siteCopy("site_social_kicker"))}</span><strong>${escapeHtml(item.label)}</strong><i>${escapeHtml(siteCopy("site_social_open_profile") || "Открыть профиль")} →</i></span>
+    <span class="social-card__copy"><span class="social-card__icon">${icon(item.key)}</span><span>${escapeHtml(siteCopy("site_social_kicker"))}</span><strong>${escapeHtml(item.label)}</strong><i>${escapeHtml(siteCopy("site_social_open_profile") || "Открыть профиль")} →</i></span>
   </a>`).join("");
 }
 
@@ -671,6 +690,7 @@ function renderProducts() {
     </div>
   `;
 
+  initProductOrientations($("#products"));
   observeReveals($("#products"));
 }
 

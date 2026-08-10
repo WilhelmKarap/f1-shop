@@ -9,7 +9,7 @@ let currentOrderId = null;
 const teams = window.F1_TEAMS || [];
 
 const SITE_COPY_DEFAULTS = {
-  site_nav_catalog: "Каталог", site_nav_weekly: "Скидки недели", site_nav_delivery: "Доставка", site_nav_contact: "Связаться", site_cart_label: "Пит-стоп",
+  site_nav_catalog: "Каталог", site_nav_categories: "Категории", site_nav_weekly: "Скидки недели", site_nav_social: "Соцсети", site_nav_delivery: "Доставка", site_nav_contact: "Связаться", site_cart_label: "Пит-стоп",
   site_hero_kicker_1: "Коллекция 2026", site_hero_kicker_2: "Печать и детали", site_hero_title_top: "F1", site_hero_title_bottom: "Posters",
   site_hero_text: "Постеры, конструкторы, одежда и кастомные иллюстрации для тех, кто замечает каждую деталь гонки.", site_hero_primary_cta: "Выйти на старт", site_hero_weekly_cta: "Скидки недели",
   site_metric_products: "Товары", site_metric_categories: "Категории", site_metric_delivery: "Доставка", site_metric_delivery_value: "ПВЗ",

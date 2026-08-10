@@ -67,13 +67,64 @@ function addToCart() {
 
 function spec(label, value) { return value ? `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd>` : ""; }
 
+function setProductPalette(source, fallback) {
+  const root = document.documentElement;
+  const apply = (colors = []) => {
+    root.style.setProperty("--product-color-a", colors[0] || fallback.primary || "#e10600");
+    root.style.setProperty("--product-color-b", colors[1] || fallback.secondary || "#17191d");
+    root.style.setProperty("--product-color-c", colors[2] || fallback.accent || "#f1d74b");
+  };
+  apply();
+  const probe = new Image();
+  probe.crossOrigin = "anonymous";
+  probe.onload = () => {
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = 36;
+      canvas.height = 36;
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      context.drawImage(probe, 0, 0, 36, 36);
+      const pixels = context.getImageData(0, 0, 36, 36).data;
+      const buckets = new Map();
+      for (let offset = 0; offset < pixels.length; offset += 16) {
+        const rgb = [pixels[offset], pixels[offset + 1], pixels[offset + 2]];
+        const light = (Math.max(...rgb) + Math.min(...rgb)) / 2;
+        if (pixels[offset + 3] < 180 || light < 18 || light > 238) continue;
+        const key = rgb.map((value) => Math.round(value / 32) * 32).join(",");
+        buckets.set(key, (buckets.get(key) || 0) + 1 + (Math.max(...rgb) - Math.min(...rgb)) / 80);
+      }
+      const ranked = [...buckets.entries()].sort((a, b) => b[1] - a[1]).map(([key]) => key.split(",").map(Number));
+      const selected = [];
+      for (const color of ranked) {
+        if (selected.every((other) => Math.hypot(color[0] - other[0], color[1] - other[1], color[2] - other[2]) > 68)) selected.push(color);
+        if (selected.length === 3) break;
+      }
+      apply(selected.map((color) => `rgb(${color.join(" ")})`));
+    } catch {
+      apply();
+    }
+  };
+  probe.onerror = () => apply();
+  probe.src = source;
+}
+
 function render() {
   const team = window.F1_TEAM_BY_SLUG?.[product.team];
   const category = categories.find((item) => String(item.id) === String(product.category_id));
   const title = cleanCopy(product.title);
-  $("#productImage").src = asset(product.main_image || product.cover_image || product.image) || "assets/fallback-poster.webp";
+  const imageSource = asset(product.main_image || product.cover_image || product.image) || "assets/fallback-poster.webp";
   $("#productImage").alt = title;
-  $("#productImage").onerror = () => { $("#productImage").src = "assets/fallback-poster.webp"; };
+  $("#productImage").onload = () => {
+    const image = $("#productImage");
+    $("#productGallery").classList.toggle("is-landscape", image.naturalWidth / image.naturalHeight > 1.12);
+  };
+  $("#productImage").onerror = () => {
+    $("#productImage").src = "assets/fallback-poster.webp";
+    $("#productBackdrop").src = "assets/fallback-poster.webp";
+  };
+  $("#productImage").src = imageSource;
+  $("#productBackdrop").src = imageSource;
+  setProductPalette(imageSource, team?.colors || {});
   $("#productTitle").textContent = title;
   $("#productDescription").textContent = cleanCopy(product.description) || "Подробности по этой работе можно уточнить у менеджера.";
   $("#productKicker").textContent = team?.name || category?.name || settings.site_product_kicker || "Коллекция F1 Posters";
