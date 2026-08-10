@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>CMS F1 Constructor Shop</title>
-    <link rel="stylesheet" href="styles.css?v=20260807-4" />
+    <link rel="stylesheet" href="styles.css?v=20260810-1" />
   </head>
   <body>
     <section class="login-screen" id="loginScreen">
@@ -28,6 +28,7 @@
         <button class="nav" data-page="products">Товары</button>
         <button class="nav" data-page="orders">Заказы</button>
         <button class="nav" data-page="weekly">Скидки недели</button>
+        <button class="nav" data-page="team-media">Команды и медиа</button>
         <button class="nav" data-page="banners">Баннеры</button>
         <button class="nav" data-page="content">Тексты сайта</button>
         <button class="nav" data-page="settings">Настройки</button>
@@ -72,6 +73,29 @@
           <div class="table-wrap"><table><thead><tr><th>Фото</th><th>Название</th><th>Цена</th><th></th></tr></thead><tbody id="weeklyTable"></tbody></table></div>
         </section>
 
+        <section class="page hidden" id="page-team-media">
+          <form class="content-form" id="teamMediaForm">
+            <div class="panel">
+              <h2>Медиа команд</h2>
+              <p class="muted">Для каждой команды можно загрузить логотип, фон и передний слой. На витрине будут использованы только загруженные материалы.</p>
+              <div class="team-media-grid" id="teamMediaSlots"></div>
+            </div>
+            <div class="panel">
+              <h2>Социальные сети и защита изображений</h2>
+              <div class="content-grid">
+                <label class="field">Ссылка TikTok<input name="social_tiktok_url" placeholder="https://www.tiktok.com/@..." /></label>
+                <label class="field">Ссылка Instagram<input name="social_instagram_url" placeholder="https://www.instagram.com/..." /></label>
+                <label class="field">Фон блока TikTok<input type="file" accept="image/jpeg,image/png,image/webp" data-upload="social" data-target="social_tiktok_background" /><input name="social_tiktok_background" /></label>
+                <label class="field">Передний слой TikTok<input type="file" accept="image/jpeg,image/png,image/webp" data-upload="social" data-target="social_tiktok_foreground" /><input name="social_tiktok_foreground" /></label>
+                <label class="field">Фон блока Instagram<input type="file" accept="image/jpeg,image/png,image/webp" data-upload="social" data-target="social_instagram_background" /><input name="social_instagram_background" /></label>
+                <label class="field">Передний слой Instagram<input type="file" accept="image/jpeg,image/png,image/webp" data-upload="social" data-target="social_instagram_foreground" /><input name="social_instagram_foreground" /></label>
+                <label class="field field-full">Водяной знак для новых изображений<input type="file" accept="image/jpeg,image/png,image/webp" data-upload="watermark" data-target="watermark_image" /><input name="watermark_image" /></label>
+              </div>
+            </div>
+            <div class="content-savebar"><button class="btn btn-primary">Сохранить медиа</button></div>
+          </form>
+        </section>
+
         <section class="page hidden" id="page-banners">
           <form class="panel" id="bannersForm">
             <label class="field">Текст баннера<input name="banner_text" /></label>
@@ -106,6 +130,31 @@
                 <label class="field">Подпись категорий<input name="site_metric_categories" /></label>
                 <label class="field">Подпись доставки<input name="site_metric_delivery" /></label>
                 <label class="field">Значение доставки<input name="site_metric_delivery_value" /></label>
+              </div>
+            </details>
+
+            <details class="content-group">
+              <summary>Команды, кастом и соцсети</summary>
+              <div class="content-grid">
+                <label class="field">Метка команд<input name="site_teams_kicker" /></label>
+                <label class="field">Заголовок команд<input name="site_teams_title" /></label>
+                <label class="field field-full">Описание команд<textarea name="site_teams_text"></textarea></label>
+                <label class="field">Метка категорий<input name="site_categories_kicker" /></label>
+                <label class="field">Заголовок категорий<input name="site_categories_title" /></label>
+                <label class="field field-full">Описание категорий<textarea name="site_categories_text"></textarea></label>
+                <label class="field">Метка скидок<input name="site_discounts_kicker" /></label>
+                <label class="field">Заголовок скидок<input name="site_discounts_title" /></label>
+                <label class="field">Кнопка скидок<input name="site_discounts_button" /></label>
+                <label class="field">Метка кастома<input name="site_custom_kicker" /></label>
+                <label class="field">Заголовок кастома<input name="site_custom_title" /></label>
+                <label class="field field-full">Описание кастома<textarea name="site_custom_text"></textarea></label>
+                <label class="field">Метка соцсетей<input name="site_social_kicker" /></label>
+                <label class="field">Заголовок соцсетей<input name="site_social_title" /></label>
+                <label class="field">TikTok: подпись<input name="site_social_tiktok" /></label>
+                <label class="field">Instagram: подпись<input name="site_social_instagram" /></label>
+                <label class="field">Метка товара<input name="site_product_kicker" /></label>
+                <label class="field">Кнопка кастомного товара<input name="site_custom_product_button" /></label>
+                <label class="field">Фраза «цена по запросу»<input name="site_price_on_request" /></label>
               </div>
             </details>
 
@@ -247,10 +296,20 @@
       <label class="field">Категория<select name="category_id"></select></label>
       <label class="field">Подкатегория<select name="subcategory_id"><option value="">Без подкатегории</option></select></label>
       <label class="field">Описание<textarea name="description"></textarea></label>
-      <label class="field">Цена<input name="price" type="number" required /></label>
+      <label class="field">Цена обычного товара<input name="price" type="number" min="0" /></label>
       <label class="field">Старая цена<input name="old_price" type="number" /></label>
-      <label class="field">Изображение<input type="file" data-upload="products" data-target="image" /><input name="image" /></label>
+      <label class="field">Команда<select name="team"><option value="">Не указывать</option></select></label>
+      <label class="field">Обложка карточки<input type="file" accept="image/jpeg,image/png,image/webp" data-upload="products" data-target="cover_image" data-original-target="original_cover_image" data-alias-target="image" /><input name="cover_image" /><input name="original_cover_image" type="hidden" /><input name="image" type="hidden" /></label>
+      <label class="field">Основное изображение<input type="file" accept="image/jpeg,image/png,image/webp" data-upload="products" data-target="main_image" data-original-target="original_main_image" /><input name="main_image" /><input name="original_main_image" type="hidden" /></label>
       <label class="check"><input name="is_weekly_discount" type="checkbox" /> Скидка недели</label>
+      <label class="check"><input name="is_custom" type="checkbox" /> Кастомная работа</label>
+      <label class="field">Цена кастомной работы от<input name="custom_price" type="number" min="0" /></label>
+      <label class="field">Размер / формат<input name="product_size" placeholder="A3, 40x50 см..." /></label>
+      <label class="field">Набор LEGO<input name="lego_set" /></label>
+      <label class="field">Название проекта<input name="project_name" /></label>
+      <label class="field">Тип кастома<input name="custom_type" placeholder="Постер, иллюстрация..." /></label>
+      <label class="check"><input name="includes_frame" type="checkbox" /> В комплекте рамка</label>
+      <label class="check"><input name="includes_mount" type="checkbox" /> В комплекте крепление</label>
       <label class="check"><input name="is_available" type="checkbox" /> В наличии</label>
       <label class="check"><input name="is_draft" type="checkbox" /> Черновик</label>
       <label class="field">Порядок<input name="sort_order" type="number" value="0" /></label>
@@ -271,7 +330,8 @@
       <button class="btn btn-primary">Сохранить</button>
     </form></div>
 
-    <script src="config.js?v=20260807-1"></script>
-    <script src="admin.js?v=20260807-4"></script>
+    <script src="config.js?v=20260810-1"></script>
+    <script src="team-design.js?v=20260810-1"></script>
+    <script src="admin.js?v=20260810-1"></script>
   </body>
 </html>

@@ -1,5 +1,11 @@
-const UPLOAD_TYPES = new Set(["products", "categories", "banners", "qr", "logo"]);
+import { PhotonImage, SamplingFilter, resize, watermark } from "@cf-wasm/photon/workerd";
+
+const UPLOAD_TYPES = new Set(["products", "categories", "banners", "qr", "logo", "team-logos", "teams", "social", "watermark", "originals"]);
+const PUBLIC_UPLOAD_TYPES = new Set(["products", "categories", "banners", "qr", "logo", "team-logos", "teams", "social", "watermark"]);
+const WATERMARKED_UPLOAD_TYPES = new Set(["products", "categories", "banners", "teams", "social"]);
 const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml"]);
+const RASTER_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+const TEAM_SLUGS = new Set(["mclaren", "mercedes", "ferrari", "red-bull", "racing-bulls", "alpine", "haas", "audi", "williams", "aston-martin", "other"]);
 const STATUS_MESSAGES = {
   awaiting_payment: (o) => `Спасибо за покупку.\n\nЗаказ #${o.id} рассчитан.\nТовары: ${o.items_price} ₽\nДоставка: ${o.delivery_price} ₽\nИтого: ${o.total_price} ₽\n\nОплата доступна по QR-коду или по ссылке ниже.\n\nПосле оплаты нажмите кнопку подтверждения оплаты.`,
   paid: (o) => `Оплата по заказу #${o.id} подтверждена. Заказ принят в работу.`,
@@ -16,10 +22,11 @@ export default {
       if (url.pathname.startsWith("/uploads/")) return getUpload(request, env);
       if (url.pathname === "/telegram/webhook" && request.method === "POST") return telegramWebhook(request, env);
 
-      if (url.pathname === "/api/health" && request.method === "GET") return json(request, env, { ok: true, version: "cloudflare-2026-08-07.1" });
+      if (url.pathname === "/api/health" && request.method === "GET") return json(request, env, { ok: true, version: "cloudflare-2026-08-10.1" });
       if (url.pathname === "/api/admin/login" && request.method === "POST") return adminLogin(request, env);
       if (url.pathname === "/api/me" && request.method === "GET") return withAdmin(request, env, () => json(request, env, { ok: true, admin: { role: "admin" } }));
       if (url.pathname === "/api/upload" && request.method === "POST") return withAdmin(request, env, () => uploadFile(request, env));
+      if (url.pathname === "/api/admin/original" && request.method === "GET") return withAdmin(request, env, () => getOriginalUpload(request, env));
       if (url.pathname === "/api/admin/setup-bot" && request.method === "POST") return withAdmin(request, env, () => setupBot(request, env));
       if (url.pathname === "/api/admin/backup" && request.method === "GET") return withAdmin(request, env, () => exportJson(request, env));
       if (url.pathname === "/api/admin/restore" && request.method === "POST") return withAdmin(request, env, () => restoreJsonFromForm(request, env));
@@ -109,6 +116,9 @@ function rowToProduct(row) {
     is_weekly_discount: Boolean(row.is_weekly_discount),
     is_available: Boolean(row.is_available),
     is_draft: Boolean(row.is_draft),
+    is_custom: Boolean(row.is_custom),
+    includes_frame: Boolean(row.includes_frame),
+    includes_mount: Boolean(row.includes_mount),
   };
 }
 
@@ -308,7 +318,12 @@ async function listProducts(request, env) {
     sql += " AND subcategory_id = ?";
     args.push(url.searchParams.get("subcategory_id"));
   }
+  if (url.searchParams.get("team")) {
+    sql += " AND team = ?";
+    args.push(url.searchParams.get("team"));
+  }
   if (url.searchParams.get("weekly") === "1") sql += " AND is_weekly_discount = 1";
+  if (url.searchParams.get("custom") === "1") sql += " AND is_custom = 1";
   sql += " ORDER BY sort_order, id DESC";
   const { results } = await env.DB.prepare(sql).bind(...args).all();
   return json(request, env, results.map(rowToProduct));
@@ -321,6 +336,8 @@ async function getProduct(request, env, id) {
 }
 
 function normalizeProduct(body) {
+  const team = String(body.team || "").trim();
+  const isCustom = Boolean(body.is_custom);
   return {
     category_id: body.category_id || null,
     subcategory_id: body.subcategory_id || null,
@@ -329,6 +346,19 @@ function normalizeProduct(body) {
     price: Math.max(0, Number(body.price) || 0),
     old_price: body.old_price == null || body.old_price === "" ? null : Math.max(0, Number(body.old_price) || 0),
     image: body.image || "",
+    cover_image: body.cover_image || body.image || "",
+    main_image: body.main_image || body.image || "",
+    original_cover_image: body.original_cover_image || "",
+    original_main_image: body.original_main_image || "",
+    team: TEAM_SLUGS.has(team) ? team : "",
+    is_custom: bool(isCustom),
+    custom_price: body.custom_price === "" || body.custom_price == null ? null : Math.max(0, Number(body.custom_price) || 0),
+    product_size: String(body.product_size || "").trim(),
+    lego_set: String(body.lego_set || "").trim(),
+    project_name: String(body.project_name || "").trim(),
+    custom_type: String(body.custom_type || "").trim(),
+    includes_frame: bool(body.includes_frame),
+    includes_mount: bool(body.includes_mount),
     is_weekly_discount: bool(body.is_weekly_discount),
     is_available: body.is_available === false ? 0 : 1,
     is_draft: bool(body.is_draft),
@@ -338,12 +368,12 @@ function normalizeProduct(body) {
 
 async function createProduct(request, env) {
   const product = normalizeProduct(await readJson(request));
-  if (!product.title || !product.price) return json(request, env, { error: "Название и цена обязательны" }, 400);
+  if (!product.title || (!product.price && !product.is_custom)) return json(request, env, { error: "Название и цена обязательны" }, 400);
   const result = await env.DB.prepare(
     `INSERT INTO products
-     (category_id, subcategory_id, title, description, price, old_price, image, is_weekly_discount, is_available, is_draft, sort_order)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-  ).bind(product.category_id, product.subcategory_id, product.title, product.description, product.price, product.old_price, product.image, product.is_weekly_discount, product.is_available, product.is_draft, product.sort_order).run();
+     (category_id, subcategory_id, title, description, price, old_price, image, cover_image, main_image, original_cover_image, original_main_image, team, is_custom, custom_price, product_size, lego_set, project_name, custom_type, includes_frame, includes_mount, is_weekly_discount, is_available, is_draft, sort_order)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).bind(product.category_id, product.subcategory_id, product.title, product.description, product.price, product.old_price, product.image, product.cover_image, product.main_image, product.original_cover_image, product.original_main_image, product.team, product.is_custom, product.custom_price, product.product_size, product.lego_set, product.project_name, product.custom_type, product.includes_frame, product.includes_mount, product.is_weekly_discount, product.is_available, product.is_draft, product.sort_order).run();
   return json(request, env, { id: result.meta.last_row_id });
 }
 
@@ -351,12 +381,12 @@ async function updateProduct(request, env, id) {
   const current = await env.DB.prepare("SELECT * FROM products WHERE id = ?").bind(id).first();
   if (!current) return json(request, env, { error: "Товар не найден" }, 404);
   const product = normalizeProduct(await readJson(request));
-  if (!product.title || !product.price) return json(request, env, { error: "Название и цена обязательны" }, 400);
+  if (!product.title || (!product.price && !product.is_custom)) return json(request, env, { error: "Название и цена обязательны" }, 400);
   await env.DB.prepare(
     `UPDATE products SET category_id = ?, subcategory_id = ?, title = ?, description = ?, price = ?, old_price = ?,
-     image = ?, is_weekly_discount = ?, is_available = ?, is_draft = ?, sort_order = ?, updated_at = datetime('now')
+     image = ?, cover_image = ?, main_image = ?, original_cover_image = ?, original_main_image = ?, team = ?, is_custom = ?, custom_price = ?, product_size = ?, lego_set = ?, project_name = ?, custom_type = ?, includes_frame = ?, includes_mount = ?, is_weekly_discount = ?, is_available = ?, is_draft = ?, sort_order = ?, updated_at = datetime('now')
      WHERE id = ?`
-  ).bind(product.category_id, product.subcategory_id, product.title, product.description, product.price, product.old_price, product.image, product.is_weekly_discount, product.is_available, product.is_draft, product.sort_order, id).run();
+  ).bind(product.category_id, product.subcategory_id, product.title, product.description, product.price, product.old_price, product.image, product.cover_image, product.main_image, product.original_cover_image, product.original_main_image, product.team, product.is_custom, product.custom_price, product.product_size, product.lego_set, product.project_name, product.custom_type, product.includes_frame, product.includes_mount, product.is_weekly_discount, product.is_available, product.is_draft, product.sort_order, id).run();
   return json(request, env, { ok: true });
 }
 
@@ -481,30 +511,136 @@ function extensionFromName(name, type) {
 async function uploadFile(request, env) {
   const url = new URL(request.url);
   const type = url.searchParams.get("type");
-  if (!UPLOAD_TYPES.has(type)) return json(request, env, { error: "Неверная папка загрузки" }, 400);
+  if (!UPLOAD_TYPES.has(type) || type === "originals") return json(request, env, { error: "Неверная папка загрузки" }, 400);
   const form = await request.formData();
   const file = form.get("file");
   if (!file || typeof file === "string") return json(request, env, { error: "Файл не получен" }, 400);
   if (!IMAGE_TYPES.has(file.type)) return json(request, env, { error: "Разрешены только изображения" }, 400);
   if (file.size > 8 * 1024 * 1024) return json(request, env, { error: "Файл больше 8 МБ" }, 400);
+  const bytes = await file.arrayBuffer();
+
+  if (WATERMARKED_UPLOAD_TYPES.has(type)) {
+    if (!RASTER_IMAGE_TYPES.has(file.type)) {
+      return json(request, env, { error: "Для витринных изображений используйте JPG, PNG или WebP" }, 400);
+    }
+    const settings = await settingsObject(env);
+    const result = await storeWatermarkedUpload(env, type, bytes, file.type, settings.watermark_image || "");
+    return json(request, env, result);
+  }
+
   const key = `${type}/${crypto.randomUUID()}${extensionFromName(file.name, file.type)}`;
-  await env.UPLOADS.put(key, await file.arrayBuffer(), {
-    metadata: { contentType: file.type || "application/octet-stream" },
-  });
-  return json(request, env, { url: `/uploads/${key}` });
+  await env.UPLOADS.put(key, bytes, { metadata: { contentType: file.type || "application/octet-stream" } });
+  return json(request, env, { url: `/uploads/${key}`, original_key: "" });
 }
 
 async function getUpload(request, env) {
   const url = new URL(request.url);
   const key = decodeURIComponent(url.pathname.replace(/^\/uploads\//, ""));
   const [type] = key.split("/");
-  if (!UPLOAD_TYPES.has(type) || key.includes("..") || key.startsWith("/")) return json(request, env, { error: "Not found" }, 404);
+  if (!safeUploadKey(key) || !PUBLIC_UPLOAD_TYPES.has(type)) return json(request, env, { error: "Not found" }, 404);
   const object = await env.UPLOADS.getWithMetadata(key, { type: "stream" });
   if (!object.value) return new Response("Not found", { status: 404, headers: corsHeaders(request, env) });
   const headers = new Headers(corsHeaders(request, env));
   headers.set("Content-Type", object.metadata?.contentType || "application/octet-stream");
   headers.set("Cache-Control", "public, max-age=31536000, immutable");
   return new Response(object.value, { headers });
+}
+
+function safeUploadKey(key, allowPrivate = false) {
+  const value = String(key || "");
+  const [type, filename, ...rest] = value.split("/");
+  if (rest.length || !type || !filename || filename.includes("..") || filename.startsWith(".")) return false;
+  if (!(allowPrivate ? UPLOAD_TYPES : PUBLIC_UPLOAD_TYPES).has(type)) return false;
+  return /^[a-zA-Z0-9][a-zA-Z0-9._-]{0,140}$/.test(filename);
+}
+
+function uploadKeyFromPublicUrl(value, request) {
+  try {
+    const parsed = new URL(String(value || ""), request.url);
+    if (!parsed.pathname.startsWith("/uploads/")) return "";
+    const key = decodeURIComponent(parsed.pathname.slice("/uploads/".length));
+    return safeUploadKey(key) ? key : "";
+  } catch {
+    return "";
+  }
+}
+
+async function getOriginalUpload(request, env) {
+  const asset = new URL(request.url).searchParams.get("asset");
+  const publicKey = uploadKeyFromPublicUrl(asset, request);
+  if (!publicKey) return json(request, env, { error: "Not found" }, 404);
+  const derived = await env.UPLOADS.getWithMetadata(publicKey, { type: "arrayBuffer" });
+  const originalKey = String(derived.metadata?.originalKey || "");
+  if (!safeUploadKey(originalKey, true) || !originalKey.startsWith("originals/")) return json(request, env, { error: "Original not found" }, 404);
+  const original = await env.UPLOADS.getWithMetadata(originalKey, { type: "stream" });
+  if (!original.value) return json(request, env, { error: "Original not found" }, 404);
+  return new Response(original.value, {
+    headers: { "Content-Type": original.metadata?.contentType || "application/octet-stream", ...corsHeaders(request, env), "Cache-Control": "no-store" },
+  });
+}
+
+async function storeWatermarkedUpload(env, type, bytes, contentType, watermarkUrl) {
+  const id = crypto.randomUUID();
+  const originalKey = `originals/${id}${extensionFromName("asset", contentType)}`;
+  const publicKey = `${type}/${id}.webp`;
+  await env.UPLOADS.put(originalKey, bytes, { metadata: { contentType } });
+
+  let output = new Uint8Array(bytes);
+  let wasWatermarked = false;
+  const watermarkKey = uploadKeyFromPublicUrl(watermarkUrl, new Request("https://worker.invalid"));
+  if (watermarkKey?.startsWith("watermark/")) {
+    const watermarkAsset = await env.UPLOADS.getWithMetadata(watermarkKey, { type: "arrayBuffer" });
+    if (watermarkAsset.value && RASTER_IMAGE_TYPES.has(watermarkAsset.metadata?.contentType)) {
+      try {
+        output = makeWatermarkedWebp(new Uint8Array(bytes), new Uint8Array(watermarkAsset.value));
+        wasWatermarked = true;
+      } catch {
+        // An upload must still succeed if a malformed source cannot be decoded by WASM.
+        output = new Uint8Array(bytes);
+      }
+    }
+  }
+
+  const outputType = wasWatermarked ? "image/webp" : contentType;
+  const key = wasWatermarked ? publicKey : `${type}/${id}${extensionFromName("asset", contentType)}`;
+  await env.UPLOADS.put(key, output, { metadata: { contentType: outputType, originalKey, watermarked: wasWatermarked } });
+  return { url: `/uploads/${key}`, original_key: originalKey, watermarked: wasWatermarked };
+}
+
+function makeWatermarkedWebp(sourceBytes, watermarkBytes) {
+  let source;
+  let display;
+  let markSource;
+  let fadedMark;
+  let scaledMark;
+  try {
+    source = PhotonImage.new_from_byteslice(sourceBytes);
+    const sourceWidth = source.get_width();
+    const sourceHeight = source.get_height();
+    if (!sourceWidth || !sourceHeight || sourceWidth * sourceHeight > 16_000_000) throw new Error("Image is too large");
+    const longest = Math.max(sourceWidth, sourceHeight);
+    display = longest > 2560
+      ? resize(source, Math.round(sourceWidth * 2560 / longest), Math.round(sourceHeight * 2560 / longest), SamplingFilter.Lanczos3)
+      : source;
+
+    markSource = PhotonImage.new_from_byteslice(watermarkBytes);
+    const raw = markSource.get_raw_pixels().slice();
+    for (let index = 3; index < raw.length; index += 4) raw[index] = Math.round(raw[index] * 0.2);
+    fadedMark = new PhotonImage(raw, markSource.get_width(), markSource.get_height());
+    const targetWidth = Math.max(48, Math.min(Math.round(display.get_width() * 0.22), fadedMark.get_width()));
+    scaledMark = targetWidth === fadedMark.get_width()
+      ? fadedMark
+      : resize(fadedMark, targetWidth, Math.max(1, Math.round(fadedMark.get_height() * targetWidth / fadedMark.get_width())), SamplingFilter.Lanczos3);
+    const margin = Math.max(18, Math.round(Math.min(display.get_width(), display.get_height()) * 0.025));
+    watermark(display, scaledMark, BigInt(Math.max(0, display.get_width() - scaledMark.get_width() - margin)), BigInt(Math.max(0, display.get_height() - scaledMark.get_height() - margin)));
+    return display.get_bytes_webp();
+  } finally {
+    if (scaledMark && scaledMark !== fadedMark) scaledMark.free();
+    if (fadedMark) fadedMark.free();
+    if (markSource) markSource.free();
+    if (display && display !== source) display.free();
+    if (source) source.free();
+  }
 }
 
 async function exportJson(request, env) {
@@ -574,18 +710,20 @@ async function importData(request, env, data) {
   }
   if (Array.isArray(data.products)) {
     for (const item of data.products) {
-      const p = normalizeProduct(item);
-      if (!p.title || !p.price) continue;
-      await env.DB.prepare(
-        `INSERT INTO products
-         (id, category_id, subcategory_id, title, description, price, old_price, image, is_weekly_discount, is_available, is_draft, sort_order)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(id) DO UPDATE SET
-           category_id = excluded.category_id, subcategory_id = excluded.subcategory_id, title = excluded.title,
-           description = excluded.description, price = excluded.price, old_price = excluded.old_price, image = excluded.image,
-           is_weekly_discount = excluded.is_weekly_discount, is_available = excluded.is_available,
-           is_draft = excluded.is_draft, sort_order = excluded.sort_order, updated_at = datetime('now')`
-      ).bind(item.id || null, p.category_id, p.subcategory_id, p.title, p.description, p.price, p.old_price, p.image, p.is_weekly_discount, p.is_available, p.is_draft, p.sort_order).run();
+     const p = normalizeProduct(item);
+      if (!p.title || (!p.price && !p.is_custom)) continue;
+     await env.DB.prepare(
+       `INSERT INTO products
+         (id, category_id, subcategory_id, title, description, price, old_price, image, cover_image, main_image, original_cover_image, original_main_image, team, is_custom, custom_price, product_size, lego_set, project_name, custom_type, includes_frame, includes_mount, is_weekly_discount, is_available, is_draft, sort_order)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          category_id = excluded.category_id, subcategory_id = excluded.subcategory_id, title = excluded.title,
+           description = excluded.description, price = excluded.price, old_price = excluded.old_price, image = excluded.image, cover_image = excluded.cover_image, main_image = excluded.main_image,
+           original_cover_image = excluded.original_cover_image, original_main_image = excluded.original_main_image, team = excluded.team, is_custom = excluded.is_custom, custom_price = excluded.custom_price,
+           product_size = excluded.product_size, lego_set = excluded.lego_set, project_name = excluded.project_name, custom_type = excluded.custom_type, includes_frame = excluded.includes_frame, includes_mount = excluded.includes_mount,
+          is_weekly_discount = excluded.is_weekly_discount, is_available = excluded.is_available,
+          is_draft = excluded.is_draft, sort_order = excluded.sort_order, updated_at = datetime('now')`
+      ).bind(item.id || null, p.category_id, p.subcategory_id, p.title, p.description, p.price, p.old_price, p.image, p.cover_image, p.main_image, p.original_cover_image, p.original_main_image, p.team, p.is_custom, p.custom_price, p.product_size, p.lego_set, p.project_name, p.custom_type, p.includes_frame, p.includes_mount, p.is_weekly_discount, p.is_available, p.is_draft, p.sort_order).run();
       imported.products += 1;
     }
   }

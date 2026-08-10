@@ -15,7 +15,7 @@
         }
       })();
     </script>
-    <link rel="stylesheet" href="storefront.css?v=20260807-4" />
+    <link rel="stylesheet" href="storefront.css?v=20260810-3" />
     <script async src="https://telegram.org/js/telegram-web-app.js" onload="window.dispatchEvent(new Event('telegram-web-app-ready'))"></script>
   </head>
   <body>
@@ -34,6 +34,7 @@
 
       <nav class="primary-nav" id="primaryNav" aria-label="Основная навигация">
         <a href="#catalog" data-setting="site_nav_catalog">Каталог</a>
+        <a href="#teams" data-setting="site_teams_title">Команды</a>
         <a href="#catalog" data-nav-category="weekly" data-setting="site_nav_weekly">Скидки недели</a>
         <a href="#delivery" data-setting="site_nav_delivery">Доставка</a>
         <a class="manager-link" id="managerLink" href="https://t.me/F1posters_mng" target="_blank" rel="noreferrer" data-setting="site_nav_contact">Связаться</a>
@@ -60,6 +61,8 @@
             </div>
           </div>
 
+          <div class="poster-carousel reveal" id="heroPosterCarousel" aria-label="Избранные постеры"></div>
+
           <div class="hero__telemetry" aria-label="Информация о магазине">
             <div><span data-setting="site_metric_products">Товары</span><strong id="heroProductCount">--</strong></div>
             <div><span data-setting="site_metric_categories">Категории</span><strong id="heroCategoryCount">--</strong></div>
@@ -76,6 +79,32 @@
         <a href="#delivery" data-sector="delivery"><span>S2</span><b>Условия</b></a>
         <button type="button" data-sector="order" id="sectorCart"><span>S3</span><b>Заказ</b></button>
       </nav>
+
+      <section class="team-section" id="teams" aria-labelledby="teamsTitle">
+        <div class="container section-heading section-heading--light reveal">
+          <p class="kicker" data-setting="site_teams_kicker">Паддок 2026</p>
+          <h2 id="teamsTitle" data-setting="site_teams_title">Команды</h2>
+          <p data-setting="site_teams_text">Выберите команду и найдите постеры, LEGO-работы и вещи с её характером.</p>
+        </div>
+        <div class="team-grid container" id="teamGrid"></div>
+      </section>
+
+      <section class="category-showcase" id="categories" aria-labelledby="categoriesTitle">
+        <div class="container section-heading reveal">
+          <p class="kicker kicker--dark" data-setting="site_categories_kicker">Коллекции</p>
+          <h2 id="categoriesTitle" data-setting="site_categories_title">Выберите свой формат</h2>
+          <p data-setting="site_categories_text">Постеры, конструкторы, одежда и авторские иллюстрации с темпом гоночного уикенда.</p>
+        </div>
+        <div class="category-showcase__grid container" id="categoryShowcaseGrid"></div>
+      </section>
+
+      <section class="discount-section" id="discounts" aria-labelledby="discountTitle">
+        <div class="container section-heading section-heading--split reveal">
+          <div><p class="kicker" data-setting="site_discounts_kicker">Текущий круг</p><h2 id="discountTitle" data-setting="site_discounts_title">Скидки недели</h2></div>
+          <a class="text-link" href="#catalog" data-nav-category="weekly"><span data-setting="site_discounts_button">Смотреть все</span> <i aria-hidden="true">→</i></a>
+        </div>
+        <div class="premium-product-grid container" id="discountGrid"></div>
+      </section>
 
       <section class="catalog-section" id="catalog" aria-labelledby="catalogTitle">
         <h2 class="sr-only" id="catalogTitle">Каталог</h2>
@@ -110,6 +139,21 @@
         <section class="product-grid container" id="products" aria-live="polite">
           <div class="catalog-loading"><i></i><span>Готовим стартовую решётку</span></div>
         </section>
+      </section>
+
+      <section class="custom-section" id="custom" aria-labelledby="customTitle">
+        <div class="container custom-section__copy reveal">
+          <p class="kicker" data-setting="site_custom_kicker">Своя траектория</p>
+          <h2 id="customTitle" data-setting="site_custom_title">Кастомные работы</h2>
+          <p data-setting="site_custom_text">Выберите готовую основу или расскажите идею менеджеру: формат, команду, пилота и настроение работы.</p>
+          <a class="button button--signal magnetic" id="customSectionManagerLink" href="https://t.me/F1posters_mng" target="_blank" rel="noreferrer" data-setting="site_custom_product_button">Оставить заявку</a>
+        </div>
+        <div class="premium-product-grid custom-section__grid container" id="customGrid"></div>
+      </section>
+
+      <section class="social-section" id="social" aria-labelledby="socialTitle">
+        <div class="container section-heading reveal"><p class="kicker kicker--dark" data-setting="site_social_kicker">Вне трассы</p><h2 id="socialTitle" data-setting="site_social_title">Следите за новыми работами</h2></div>
+        <div class="social-grid container" id="socialGrid"></div>
       </section>
 
       <section class="delivery-band" id="delivery" aria-labelledby="deliveryTitle">
@@ -163,7 +207,6 @@
         <nav aria-label="Навигация в подвале">
           <a href="#catalog" data-setting="site_nav_catalog">Каталог</a>
           <a id="footerManagerLink" href="https://t.me/F1posters_mng" target="_blank" rel="noreferrer" data-setting="site_footer_manager">Менеджер</a>
-          <a href="admin.html" data-setting="site_footer_admin">Управление</a>
         </nav>
         <span>© <span id="year"></span> F1 Posters</span>
       </div>
@@ -239,7 +282,8 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script defer src="config.js?v=20260807-1"></script>
-    <script defer src="app.js?v=20260807-4"></script>
+    <script defer src="config.js?v=20260810-1"></script>
+    <script defer src="team-design.js?v=20260810-1"></script>
+    <script defer src="app.js?v=20260810-2"></script>
   </body>
 </html>

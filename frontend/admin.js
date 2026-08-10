@@ -6,6 +6,7 @@ let products = [];
 let orders = [];
 let settings = {};
 let currentOrderId = null;
+const teams = window.F1_TEAMS || [];
 
 const SITE_COPY_DEFAULTS = {
   site_nav_catalog: "Каталог", site_nav_weekly: "Скидки недели", site_nav_delivery: "Доставка", site_nav_contact: "Связаться", site_cart_label: "Пит-стоп",
@@ -30,6 +31,12 @@ const SITE_COPY_DEFAULTS = {
   site_success_kicker: "Финиш", site_success_title: "Заказ принят",
   site_success_text: "Спасибо за покупку. Заказ #{id} отправлен администратору. Он отдельно рассчитает стоимость товаров и доставки, затем свяжется с вами по указанным контактам.",
   site_success_button: "Вернуться в каталог", site_footer_tagline: "Постеры, конструкторы и авторские работы о скорости.", site_footer_manager: "Менеджер", site_footer_admin: "Управление",
+  site_teams_kicker: "Паддок 2026", site_teams_title: "Команды", site_teams_text: "Выберите команду и найдите постеры, LEGO-работы и вещи с её характером.",
+  site_categories_kicker: "Коллекции", site_categories_title: "Выберите свой формат", site_categories_text: "Постеры, конструкторы, одежда и авторские иллюстрации с темпом гоночного уикенда.",
+  site_discounts_kicker: "Текущий круг", site_discounts_title: "Скидки недели", site_discounts_button: "Смотреть все",
+  site_custom_kicker: "Своя траектория", site_custom_title: "Кастомные работы", site_custom_text: "Выберите готовую основу или расскажите идею менеджеру: формат, команду, пилота и настроение работы.",
+  site_social_kicker: "Вне трассы", site_social_title: "Следите за новыми работами", site_social_tiktok: "TikTok", site_social_instagram: "Instagram",
+  site_product_kicker: "Коллекция F1 Posters", site_custom_product_button: "Оставить заявку", site_price_on_request: "Цена по запросу",
 };
 
 const $ = (s) => document.querySelector(s);
@@ -164,7 +171,7 @@ async function loadPage(page) {
   if (page === "products") await loadProducts();
   if (page === "orders") await loadOrders();
   if (page === "weekly") await loadWeekly();
-  if (page === "banners" || page === "content" || page === "settings") await loadSettings();
+  if (page === "banners" || page === "content" || page === "settings" || page === "team-media") await loadSettings();
 }
 
 async function loadDashboard() {
@@ -172,7 +179,7 @@ async function loadDashboard() {
   $("#statOrdersToday").textContent = s.ordersToday;
   $("#statRevenue").textContent = money(s.revenue);
   $("#statOrders").textContent = s.totalOrders;
-  $("#statProducts").textContent = s.totalProducts;
+  $("#statProducts").textContent = s.totalProducts || s.products || 0;
 }
 
 async function loadCategories() {
@@ -188,6 +195,28 @@ function fillCategorySelect() {
   $("#productForm [name=category_id]").innerHTML = categories.map((c) => `<option value="${c.id}">${c.name}</option>`).join("");
   $("#subcategoryForm [name=category_id]").innerHTML = categories.map((c) => `<option value="${c.id}">${c.name}</option>`).join("");
   fillSubcategorySelect();
+  fillTeamSelect();
+}
+
+function fillTeamSelect() {
+  const select = $("#productForm [name=team]");
+  if (!select) return;
+  const current = select.value;
+  select.innerHTML = `<option value="">Не указывать</option>${teams.map((team) => `<option value="${team.slug}">${team.name}</option>`).join("")}`;
+  select.value = current;
+}
+
+function renderTeamMediaSlots() {
+  const host = $("#teamMediaSlots");
+  if (!host) return;
+  host.innerHTML = teams.map((team) => {
+    const key = `team_${team.slug}`;
+    return `<article class="team-media-card"><h3>${team.name}</h3>
+      <label class="field">Логотип<input type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml" data-upload="team-logos" data-target="${key}_logo" /><input name="${key}_logo" /></label>
+      <label class="field">Фон<input type="file" accept="image/jpeg,image/png,image/webp" data-upload="teams" data-target="${key}_background" data-original-target="${key}_background_original" /><input name="${key}_background" /><input name="${key}_background_original" type="hidden" /></label>
+      <label class="field">Передний слой<input type="file" accept="image/jpeg,image/png,image/webp" data-upload="teams" data-target="${key}_foreground" data-original-target="${key}_foreground_original" /><input name="${key}_foreground" /><input name="${key}_foreground_original" type="hidden" /></label>
+    </article>`;
+  }).join("");
 }
 
 function fillSubcategorySelect(selectedId = "") {
@@ -218,14 +247,14 @@ async function loadProducts() {
   $("#productsTable").innerHTML = products.map((p) => {
     const category = categories.find((c) => c.id === p.category_id);
     const subcategory = subcategories.find((c) => c.id === p.subcategory_id);
-    return `<tr><td><img class="thumb" src="${asset(p.image)}" /></td><td>${p.title}<small>${p.is_draft ? "Черновик" : ""}</small></td><td>${category?.name || ""}</td><td>${subcategory?.name || "Без подкатегории"}</td><td>${money(p.price)}</td><td>${p.is_available ? "В наличии" : "Нет в наличии"}</td><td><button onclick="editProduct(${p.id})">Изменить</button><button onclick="deleteProduct(${p.id})">Удалить</button></td></tr>`;
+    return `<tr><td><img class="thumb" src="${asset(p.cover_image || p.image)}" /></td><td>${p.title}<small>${[p.team, p.is_custom ? "Кастом" : "", p.is_draft ? "Черновик" : ""].filter(Boolean).join(" · ")}</small></td><td>${category?.name || ""}</td><td>${subcategory?.name || "Без подкатегории"}</td><td>${p.is_custom ? "По запросу" : money(p.price)}</td><td>${p.is_available ? "В наличии" : "Нет в наличии"}</td><td><button onclick="editProduct(${p.id})">Изменить</button><button onclick="deleteProduct(${p.id})">Удалить</button></td></tr>`;
   }).join("");
 }
 
 async function loadWeekly() {
   if (!products.length) products = await api("/api/products?admin=1");
   $("#weeklyTable").innerHTML = products.filter((p) => p.is_weekly_discount).map((p) => `
-    <tr><td><img class="thumb" src="${asset(p.image)}" /></td><td>${p.title}</td><td>${money(p.price)}</td><td><button onclick="editProduct(${p.id})">Изменить</button></td></tr>
+    <tr><td><img class="thumb" src="${asset(p.cover_image || p.image)}" /></td><td>${p.title}</td><td>${p.is_custom ? "По запросу" : money(p.price)}</td><td><button onclick="editProduct(${p.id})">Изменить</button></td></tr>
   `).join("") || `<tr><td colspan="4">Скидок недели пока нет</td></tr>`;
 }
 
@@ -242,7 +271,9 @@ function labelStatus(s) {
 
 async function loadSettings() {
   settings = await api("/api/settings");
-  for (const form of [$("#settingsForm"), $("#bannersForm"), $("#contentForm")]) {
+  renderTeamMediaSlots();
+  for (const form of [$("#settingsForm"), $("#bannersForm"), $("#contentForm"), $("#teamMediaForm")]) {
+    if (!form) continue;
     [...form.elements].forEach((el) => {
       if (el.name && settings[el.name] != null) el.value = settings[el.name];
       else if (form.id === "contentForm" && el.name && SITE_COPY_DEFAULTS[el.name] != null) el.value = SITE_COPY_DEFAULTS[el.name];
@@ -289,7 +320,11 @@ window.editProduct = async (id) => {
   const f = $("#productForm");
   f.id.value = p.id; f.title.value = p.title; f.category_id.value = p.category_id || ""; f.description.value = p.description || "";
   fillSubcategorySelect(p.subcategory_id);
-  f.price.value = p.price; f.old_price.value = p.old_price || ""; f.image.value = p.image || "";
+  fillTeamSelect();
+  f.team.value = p.team || ""; f.price.value = p.price; f.old_price.value = p.old_price || ""; f.image.value = p.image || "";
+  f.cover_image.value = p.cover_image || p.image || ""; f.main_image.value = p.main_image || p.image || "";
+  f.original_cover_image.value = p.original_cover_image || ""; f.original_main_image.value = p.original_main_image || "";
+  f.is_custom.checked = !!p.is_custom; f.custom_price.value = p.custom_price || ""; f.product_size.value = p.product_size || ""; f.lego_set.value = p.lego_set || ""; f.project_name.value = p.project_name || ""; f.custom_type.value = p.custom_type || ""; f.includes_frame.checked = !!p.includes_frame; f.includes_mount.checked = !!p.includes_mount;
   f.is_weekly_discount.checked = !!p.is_weekly_discount; f.is_available.checked = !!p.is_available; f.is_draft.checked = !!p.is_draft; f.sort_order.value = p.sort_order || 0;
   openOverlay("productModal");
 };
@@ -335,8 +370,11 @@ document.addEventListener("change", async (e) => {
   if (e.target.matches("#productForm [name=category_id]")) fillSubcategorySelect();
   const input = e.target.closest("input[type=file][data-upload]");
   if (!input?.files?.[0]) return;
-  const { url } = await upload(input.dataset.upload, input.files[0]);
-  input.closest("form").elements[input.dataset.target].value = url;
+  const result = await upload(input.dataset.upload, input.files[0]);
+  const form = input.closest("form");
+  form.elements[input.dataset.target].value = result.url;
+  if (input.dataset.originalTarget && form.elements[input.dataset.originalTarget]) form.elements[input.dataset.originalTarget].value = result.original_key || "";
+  if (input.dataset.aliasTarget && form.elements[input.dataset.aliasTarget]) form.elements[input.dataset.aliasTarget].value = result.url;
 });
 
 $("#categoryForm").onsubmit = async (e) => {
@@ -360,7 +398,10 @@ $("#productForm").onsubmit = async (e) => {
   const f = e.currentTarget;
   const payload = {
     title: f.title.value, category_id: f.category_id.value || null, subcategory_id: f.subcategory_id.value || null, description: f.description.value, price: Number(f.price.value),
-    old_price: f.old_price.value ? Number(f.old_price.value) : null, image: f.image.value,
+    old_price: f.old_price.value ? Number(f.old_price.value) : null, image: f.image.value, cover_image: f.cover_image.value, main_image: f.main_image.value,
+    original_cover_image: f.original_cover_image.value, original_main_image: f.original_main_image.value, team: f.team.value, is_custom: f.is_custom.checked,
+    custom_price: f.custom_price.value ? Number(f.custom_price.value) : null, product_size: f.product_size.value, lego_set: f.lego_set.value, project_name: f.project_name.value, custom_type: f.custom_type.value,
+    includes_frame: f.includes_frame.checked, includes_mount: f.includes_mount.checked,
     is_weekly_discount: f.is_weekly_discount.checked, is_available: f.is_available.checked, is_draft: f.is_draft.checked, sort_order: Number(f.sort_order.value) || 0,
   };
   await api(f.id.value ? `/api/products/${f.id.value}` : "/api/products", { method: f.id.value ? "PUT" : "POST", body: JSON.stringify(payload) });
@@ -377,7 +418,8 @@ $("#orderForm").addEventListener("input", (e) => {
   if (e.target.name === "items_price" || e.target.name === "delivery_price") renderOrderTotal();
 });
 
-for (const form of [$("#settingsForm"), $("#bannersForm"), $("#contentForm")]) {
+for (const form of [$("#settingsForm"), $("#bannersForm"), $("#contentForm"), $("#teamMediaForm")]) {
+  if (!form) continue;
   form.onsubmit = async (e) => {
     e.preventDefault();
     await api("/api/settings", { method: "PUT", body: JSON.stringify(Object.fromEntries(new FormData(e.currentTarget).entries())) });

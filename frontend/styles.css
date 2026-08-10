@@ -99,6 +99,10 @@ td button { margin-right: 6px; min-height: 32px; border: 1px solid var(--border)
 .content-grid .field { min-width: 0; }
 .content-grid .field-full { grid-column: 1 / -1; }
 .content-savebar { position: sticky; z-index: 4; bottom: 12px; display: flex; justify-content: flex-end; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: rgba(23, 26, 33, .94); backdrop-filter: blur(10px); }
+.team-media-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.team-media-card { min-width: 0; padding: 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-2); }
+.team-media-card h3 { margin: 0 0 12px; font-size: 15px; }
+.team-media-card .field:last-child { margin-bottom: 0; }
 @media (max-width: 760px) {
   .admin-layout { display: block; }
   .sidebar { width: 100%; display: flex; overflow-x: auto; padding: 8px; }
@@ -108,4 +112,5 @@ td button { margin-right: 6px; min-height: 32px; border: 1px solid var(--border)
   .stat-grid { grid-template-columns: 1fr 1fr; }
   .content-grid { grid-template-columns: 1fr; padding: 14px; }
   .content-grid .field-full { grid-column: 1; }
+  .team-media-grid { grid-template-columns: 1fr; }
 }

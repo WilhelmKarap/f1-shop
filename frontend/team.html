@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#101216" />
+    <meta name="description" content="Коллекция F1 Posters по командам Формулы 1." />
+    <title>Команда — F1 Posters</title>
+    <link rel="stylesheet" href="catalog-pages.css?v=20260810-2" />
+  </head>
+  <body class="team-page">
+    <header class="page-header">
+      <a class="page-brand" href="index.html"><b>F1</b><span>Posters</span></a>
+      <nav><a href="index.html#teams">Команды</a><a href="index.html#catalog">Каталог</a><a class="page-cart" href="index.html#catalog">Корзина <b id="cartCount">0</b></a></nav>
+    </header>
+    <main>
+      <section class="team-hero" id="teamHero">
+        <img class="team-hero__background hidden" id="teamBackground" alt="" />
+        <img class="team-hero__foreground hidden" id="teamForeground" alt="" />
+        <div class="team-hero__content">
+          <a class="back-link" href="index.html#teams">← Все команды</a>
+          <img class="team-hero__logo hidden" id="teamLogo" alt="" />
+          <p>Коллекция команды</p>
+          <h1 id="teamName">F1 Posters</h1>
+          <div class="driver-list" id="teamDrivers"></div>
+        </div>
+      </section>
+      <section class="listing-section">
+        <div class="listing-heading"><p id="teamProductCount">0 товаров</p><h2>Работы команды</h2></div>
+        <div class="page-product-grid" id="teamProducts"><p class="page-message">Загружаем коллекцию</p></div>
+      </section>
+    </main>
+    <footer class="page-footer"><span>F1 Posters</span><a id="managerLink" href="https://t.me/F1posters_mng" target="_blank" rel="noreferrer">Связаться с менеджером</a></footer>
+    <div class="page-toast" id="toast" role="status"></div>
+    <script src="config.js?v=20260810-1"></script>
+    <script src="team-design.js?v=20260810-1"></script>
+    <script src="team-page.js?v=20260810-1"></script>
+  </body>
+</html>
