@@ -216,6 +216,9 @@ function renderTeamMediaSlots() {
       <label class="field">Логотип<input type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml" data-upload="team-logos" data-target="${key}_logo" /><input name="${key}_logo" /></label>
       <label class="field">Фон<input type="file" accept="image/jpeg,image/png,image/webp" data-upload="teams" data-target="${key}_background" data-original-target="${key}_background_original" /><input name="${key}_background" /><input name="${key}_background_original" type="hidden" /></label>
       <label class="field">Передний слой<input type="file" accept="image/jpeg,image/png,image/webp" data-upload="teams" data-target="${key}_foreground" data-original-target="${key}_foreground_original" /><input name="${key}_foreground" /><input name="${key}_foreground_original" type="hidden" /></label>
+      <label class="field">Масштаб слоя, %<input type="number" min="20" max="200" step="0.01" name="${key}_foreground_scale" value="${team.mediaAlignment?.scale ?? 100}" /></label>
+      <label class="field">Сдвиг слоя по X, %<input type="number" min="-100" max="100" step="0.01" name="${key}_foreground_x" value="${team.mediaAlignment?.x ?? 0}" /></label>
+      <label class="field">Сдвиг слоя по Y, %<input type="number" min="-100" max="100" step="0.01" name="${key}_foreground_y" value="${team.mediaAlignment?.y ?? 0}" /></label>
       <label class="field">Основание / Founded<textarea name="${key}_founded" rows="3">${escapeHtml(team.details?.founded || "")}</textarea></label>
       <label class="field">История / History<textarea name="${key}_history" rows="5">${escapeHtml(team.details?.history || "")}</textarea></label>
       <label class="field">Достижения / Achievements<textarea name="${key}_achievements" rows="4">${escapeHtml(team.details?.achievements || "")}</textarea></label>

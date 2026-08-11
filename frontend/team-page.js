@@ -56,6 +56,62 @@ function setImage(id, url, alt = "") {
   image.classList.remove("hidden");
 }
 
+function settingNumber(key, fallback) {
+  const raw = settings[key];
+  if (raw == null || String(raw).trim() === "") return fallback;
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : fallback;
+}
+
+function initTeamLayerAlignment() {
+  const stage = $("#teamHero");
+  const background = $("#teamBackground");
+  const foreground = $("#teamForeground");
+  if (!stage || !background || !foreground) return;
+
+  let frame = 0;
+  const update = () => {
+    frame = 0;
+    if (!background.naturalWidth || !background.naturalHeight || !foreground.naturalWidth || !foreground.naturalHeight) return;
+
+    const stageWidth = stage.clientWidth;
+    const stageHeight = stage.clientHeight;
+    const backgroundRatio = background.naturalWidth / background.naturalHeight;
+    const foregroundRatio = foreground.naturalWidth / foreground.naturalHeight;
+    const planeWidth = Math.max(stageWidth, stageHeight * backgroundRatio);
+    const planeHeight = planeWidth / backgroundRatio;
+    const planeLeft = (stageWidth - planeWidth) / 2;
+    const ratiosDiffer = Math.abs(backgroundRatio - foregroundRatio) > .03;
+    const fallback = team.mediaAlignment || { scale: 100, x: 0, y: 0 };
+    const scale = ratiosDiffer ? Math.min(200, Math.max(20, settingNumber(`team_${slug}_foreground_scale`, fallback.scale))) : 100;
+    const offsetX = ratiosDiffer ? Math.min(100, Math.max(-100, settingNumber(`team_${slug}_foreground_x`, fallback.x))) : 0;
+    const offsetY = ratiosDiffer ? Math.min(100, Math.max(-100, settingNumber(`team_${slug}_foreground_y`, fallback.y))) : 0;
+    const foregroundWidth = planeWidth * scale / 100;
+    const foregroundHeight = foregroundWidth / foregroundRatio;
+    const foregroundLeft = planeLeft + planeWidth * offsetX / 100;
+    const foregroundTop = planeHeight * offsetY / 100;
+    const originX = (planeLeft + planeWidth / 2 - foregroundLeft) / foregroundWidth * 100;
+    const originY = -foregroundTop / foregroundHeight * 100;
+
+    Object.assign(background.style, {
+      left: `${planeLeft}px`, top: "0px", width: `${planeWidth}px`, height: `${planeHeight}px`, right: "auto", bottom: "auto",
+    });
+    Object.assign(foreground.style, {
+      left: `${foregroundLeft}px`, top: `${foregroundTop}px`, width: `${foregroundWidth}px`, height: `${foregroundHeight}px`, right: "auto", bottom: "auto",
+      transformOrigin: `${originX}% ${originY}%`,
+    });
+    stage.classList.add("team-story__stage--aligned");
+    stage.classList.toggle("team-story__stage--corrected", ratiosDiffer);
+  };
+  const requestUpdate = () => { if (!frame) frame = requestAnimationFrame(update); };
+
+  [background, foreground].forEach((image) => {
+    if (image.complete && image.naturalWidth) requestUpdate();
+    else image.addEventListener("load", requestUpdate, { once: true });
+  });
+  addEventListener("resize", requestUpdate, { passive: true });
+}
+
 function teamText(field) {
   return cleanCopy(settings[`team_${slug}_${field}`] || team.details?.[field] || "");
 }
@@ -192,6 +248,7 @@ Promise.all([
   renderTeam();
   renderProducts();
   updateCartCount();
+  initTeamLayerAlignment();
   initTeamStory();
 }).catch((error) => {
   $("#teamProducts").innerHTML = `<p class="page-message">${escapeHtml(error.message)}</p>`;

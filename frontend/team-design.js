@@ -3,6 +3,7 @@ window.F1_TEAMS = [
   {
     slug: "mclaren", name: "McLaren", drivers: ["Lando Norris", "Oscar Piastri"],
     colors: { primary: "#ff8000", secondary: "#111111", accent: "#b7b8ba", dark: "#111111", light: "#e6e7e8" },
+    mediaAlignment: { scale: 55.75, x: 22.16, y: 0.08 },
     details: {
       founded: "1963, Брюс Макларен. Дебют в Формуле 1 состоялся в 1966 году.",
       history: "McLaren выросла из команды гонщика и инженера Брюса Макларена в одну из главных сил чемпионата. Её история соединяет техническую смелость, культовые ливреи и эпохи, которые меняли представление о скорости.",

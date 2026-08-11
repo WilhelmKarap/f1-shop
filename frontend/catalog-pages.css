@@ -370,23 +370,29 @@ body.product-page {
 
 .team-story__background,
 .team-story__foreground {
+  max-width: none;
   object-fit: cover;
   object-position: center top;
   transform-origin: center top;
+  transform: scale(calc(1 + var(--team-progress) * .025));
   will-change: opacity, transform;
+}
+
+.team-story__stage--aligned .team-story__background,
+.team-story__stage--aligned .team-story__foreground {
+  object-fit: fill;
+  object-position: initial;
 }
 
 .team-story__background {
   opacity: 1;
   filter: blur(calc(var(--team-progress) * 8px)) saturate(calc(1 + var(--team-progress) * .12)) contrast(calc(1 + var(--team-progress) * .04));
-  transform: scale(calc(1 + var(--team-progress) * .025));
   will-change: filter, transform;
 }
 
 .team-story__foreground {
   opacity: clamp(0, calc((var(--team-progress) - .08) * 7), 1);
   filter: saturate(1.12) contrast(1.04) drop-shadow(0 26px 42px rgba(0,0,0,.48));
-  transform: scale(calc(1 + var(--team-progress) * .008));
 }
 
 .team-story__tint {
