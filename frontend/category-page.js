@@ -73,8 +73,8 @@ function renderSubnav() {
 function productMedia(product, title) {
   const cover = asset(product.cover_image || product.image) || FALLBACK;
   const main = asset(product.main_image || product.cover_image || product.image) || FALLBACK;
-  return `<img class="page-product-card__cover" src="${escapeHtml(cover)}" onerror="this.src='${FALLBACK}'" alt="${escapeHtml(title)}" loading="lazy" />
-    <img class="page-product-card__main" src="${escapeHtml(main)}" onerror="this.src='${FALLBACK}'" alt="" loading="lazy" />`;
+  return `<img class="page-product-card__cover" src="${escapeHtml(cover)}" onerror="this.src='${FALLBACK}'" alt="${escapeHtml(title)}" loading="lazy" decoding="async" />
+    <img class="page-product-card__main" src="${escapeHtml(main)}" onerror="this.src='${FALLBACK}'" alt="" loading="lazy" decoding="async" />`;
 }
 
 function initProductOrientations() {
@@ -86,6 +86,41 @@ function initProductOrientations() {
     if (image.complete) apply();
     else image.addEventListener("load", apply, { once: true });
   });
+}
+
+function initProductMediaTransitions() {
+  const root = $("#categoryProducts");
+  const previousProbe = Number(root.dataset.mediaProbeTimer || 0);
+  if (previousProbe) {
+    clearInterval(previousProbe);
+    delete root.dataset.mediaProbeTimer;
+  }
+  const pending = [];
+  root.querySelectorAll(".page-product-card__main:not([data-transition-bound])").forEach((image) => {
+    image.dataset.transitionBound = "true";
+    const markReady = () => {
+      if (image.classList.contains("is-loaded")) return;
+      requestAnimationFrame(() => image.classList.add("is-loaded"));
+    };
+    if (image.naturalWidth) markReady();
+    else {
+      pending.push({ image, markReady });
+      image.addEventListener("load", markReady, { once: true });
+    }
+  });
+  if (!pending.length) return;
+  let checks = 0;
+  const probe = setInterval(() => {
+    pending.forEach(({ image, markReady }) => {
+      if (image.naturalWidth) markReady();
+    });
+    checks += 1;
+    if (checks >= 80 || pending.every(({ image }) => image.classList.contains("is-loaded"))) {
+      clearInterval(probe);
+      if (root.dataset.mediaProbeTimer === String(probe)) delete root.dataset.mediaProbeTimer;
+    }
+  }, 125);
+  root.dataset.mediaProbeTimer = String(probe);
 }
 
 function renderProducts() {
@@ -105,6 +140,7 @@ function renderProducts() {
     </article>`;
   }).join("") || `<p class="page-message">В этой подкатегории товары пока не добавлены.</p>`;
   initProductOrientations();
+  initProductMediaTransitions();
 }
 
 $("#categorySubnav").addEventListener("click", (event) => {

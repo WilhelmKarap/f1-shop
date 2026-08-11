@@ -206,6 +206,40 @@ function initProductOrientations(root = document) {
   });
 }
 
+function initProductMediaTransitions(root = document) {
+  const previousProbe = Number(root.dataset?.mediaProbeTimer || 0);
+  if (previousProbe) {
+    clearInterval(previousProbe);
+    delete root.dataset.mediaProbeTimer;
+  }
+  const pending = [];
+  root.querySelectorAll(".product-media__main:not([data-transition-bound])").forEach((image) => {
+    image.dataset.transitionBound = "true";
+    const markReady = () => {
+      if (image.classList.contains("is-loaded")) return;
+      requestAnimationFrame(() => image.classList.add("is-loaded"));
+    };
+    if (image.naturalWidth) markReady();
+    else {
+      pending.push({ image, markReady });
+      image.addEventListener("load", markReady, { once: true });
+    }
+  });
+  if (!pending.length) return;
+  let checks = 0;
+  const probe = setInterval(() => {
+    pending.forEach(({ image, markReady }) => {
+      if (image.naturalWidth) markReady();
+    });
+    checks += 1;
+    if (checks >= 80 || pending.every(({ image }) => image.classList.contains("is-loaded"))) {
+      clearInterval(probe);
+      if (root.dataset?.mediaProbeTimer === String(probe)) delete root.dataset.mediaProbeTimer;
+    }
+  }, 125);
+  if (root.dataset) root.dataset.mediaProbeTimer = String(probe);
+}
+
 function teamConfig(slug) {
   return window.F1_TEAM_BY_SLUG?.[slug] || window.F1_TEAM_BY_SLUG?.other || null;
 }
@@ -575,6 +609,8 @@ function renderPremiumSections() {
   $("#customGrid").innerHTML = custom.map((product, index) => premiumProductCard(product, index, "custom")).join("") || `<p class="muted-empty">Кастомные работы добавляются через панель управления.</p>`;
   initProductOrientations($("#discountGrid"));
   initProductOrientations($("#customGrid"));
+  initProductMediaTransitions($("#discountGrid"));
+  initProductMediaTransitions($("#customGrid"));
   renderSocialGrid();
   observeReveals(document);
 }
@@ -702,6 +738,7 @@ function renderProducts() {
   `;
 
   initProductOrientations($("#products"));
+  initProductMediaTransitions($("#products"));
   observeReveals($("#products"));
 }
 
