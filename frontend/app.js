@@ -186,8 +186,8 @@ function productMediaMarkup(product, title, loading = "lazy") {
   const cover = productImage(product);
   const main = productDetailImage(product);
   const fallback = fallbackFor(product);
-  return `<img class="product-media__cover" src="${escapeHtml(cover)}" data-fallback="${fallback}" alt="${escapeHtml(title)}" loading="${loading}" />
-    <img class="product-media__main" src="${escapeHtml(main)}" data-fallback="${fallback}" alt="" loading="${loading}" />`;
+  return `<img class="product-media__cover" src="${escapeHtml(cover)}" data-fallback="${fallback}" alt="${escapeHtml(title)}" loading="${loading}" decoding="async" />
+    <img class="product-media__main" src="${escapeHtml(main)}" data-fallback="${fallback}" alt="" loading="${loading}" decoding="async" />`;
 }
 
 function applyProductOrientation(image) {
@@ -381,9 +381,10 @@ function renderHeroCarousel() {
     return;
   }
   heroIndex = Math.min(heroIndex, heroProducts.length - 1);
-  host.innerHTML = heroProducts.map((product, index) => `<button class="poster-carousel__card" type="button" data-hero-index="${index}" aria-label="Открыть ${escapeHtml(cleanCopy(product.title))}"><img src="${escapeHtml(productDetailImage(product))}" data-fallback="${fallbackFor(product)}" alt="" ${index ? 'loading="lazy"' : ''} /></button>`).join("");
+  host.innerHTML = heroProducts.map((product, index) => `<button class="poster-carousel__card" type="button" data-hero-index="${index}" aria-label="Открыть ${escapeHtml(cleanCopy(product.title))}"><img src="${escapeHtml(productDetailImage(product))}" data-fallback="${fallbackFor(product)}" alt="" decoding="async" fetchpriority="${index === 0 ? "high" : "auto"}" /></button>`).join("");
   bindHeroCarousel();
   setHeroIndex(heroIndex, false);
+  restartHeroAutoplay();
 }
 
 function heroPosition(index) {
@@ -419,7 +420,7 @@ function setHeroIndex(nextIndex, restart = true) {
 
 function restartHeroAutoplay() {
   clearInterval(heroTimer);
-  if (heroProducts.length < 2 || document.hidden || matchMedia("(prefers-reduced-motion: reduce)").matches || document.documentElement.classList.contains("telegram-mode")) return;
+  if (heroProducts.length < 2 || document.hidden) return;
   heroTimer = setInterval(() => setHeroIndex(heroIndex + 1, false), 6000);
 }
 
@@ -429,6 +430,8 @@ function bindHeroCarousel() {
   host.dataset.bound = "true";
   let pointerId = null;
   let pointerStart = 0;
+  let tiltFrame = 0;
+  let tiltPoint = null;
 
   const finishDrag = (event) => {
     if (pointerId == null || (event.pointerId != null && event.pointerId !== pointerId)) return;
@@ -439,7 +442,7 @@ function bindHeroCarousel() {
       heroDragged = true;
       setHeroIndex(heroIndex + (distance < 0 ? 1 : -1));
       setTimeout(() => { heroDragged = false; }, 0);
-    }
+    } else restartHeroAutoplay();
     pointerId = null;
   };
 
@@ -465,17 +468,25 @@ function bindHeroCarousel() {
   });
   host.addEventListener("pointermove", (event) => {
     if (!matchMedia("(hover: hover) and (pointer: fine)").matches || document.documentElement.classList.contains("telegram-mode")) return;
-    const active = host.querySelector('[data-position="0"]');
-    if (!active) return;
-    const rect = active.getBoundingClientRect();
-    const x = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
-    const y = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height));
-    active.style.setProperty("--tilt-x", `${((0.5 - y) * 6).toFixed(2)}deg`);
-    active.style.setProperty("--tilt-y", `${((x - 0.5) * 7).toFixed(2)}deg`);
-    active.style.setProperty("--light-x", `${(x * 100).toFixed(1)}%`);
-    active.style.setProperty("--light-y", `${(y * 100).toFixed(1)}%`);
+    tiltPoint = { x: event.clientX, y: event.clientY };
+    if (tiltFrame) return;
+    tiltFrame = requestAnimationFrame(() => {
+      tiltFrame = 0;
+      const active = host.querySelector('[data-position="0"]');
+      if (!active || !tiltPoint) return;
+      const rect = active.getBoundingClientRect();
+      const x = Math.max(0, Math.min(1, (tiltPoint.x - rect.left) / rect.width));
+      const y = Math.max(0, Math.min(1, (tiltPoint.y - rect.top) / rect.height));
+      active.style.setProperty("--tilt-x", `${((0.5 - y) * 6).toFixed(2)}deg`);
+      active.style.setProperty("--tilt-y", `${((x - 0.5) * 7).toFixed(2)}deg`);
+      active.style.setProperty("--light-x", `${(x * 100).toFixed(1)}%`);
+      active.style.setProperty("--light-y", `${(y * 100).toFixed(1)}%`);
+    });
   });
   host.addEventListener("pointerleave", () => {
+    if (tiltFrame) cancelAnimationFrame(tiltFrame);
+    tiltFrame = 0;
+    tiltPoint = null;
     const active = host.querySelector('[data-position="0"]');
     active?.style.removeProperty("--tilt-x");
     active?.style.removeProperty("--tilt-y");
@@ -538,7 +549,7 @@ function renderTeamGrid() {
   host.innerHTML = teams.map((team) => {
     const logo = teamMedia(team.slug, "logo");
     return `<a class="team-card" href="team.html?team=${encodeURIComponent(team.slug)}" style="${teamStyle(team)}">
-      ${logo ? `<img class="team-card__logo" src="${escapeHtml(logo)}" alt="${escapeHtml(team.name)}" />` : `<span class="team-card__monogram">${escapeHtml(team.name.slice(0, 2))}</span>`}
+      ${logo ? `<img class="team-card__logo" src="${escapeHtml(logo)}" alt="${escapeHtml(team.name)}" loading="lazy" decoding="async" />` : `<span class="team-card__monogram">${escapeHtml(team.name.slice(0, 2))}</span>`}
       <h3>${escapeHtml(team.name)}</h3>
     </a>`;
   }).join("");
@@ -550,7 +561,7 @@ function renderCategoryShowcase() {
   host.innerHTML = categories.map((category) => {
     const representative = products.find((product) => String(product.category_id) === String(category.id));
     const image = asset(category.image) || (representative ? productImage(representative) : FALLBACKS.poster);
-    return `<a class="category-tile" href="category.html?id=${category.id}"><img src="${escapeHtml(image)}" data-fallback="${fallbackFor(representative || {})}" alt="${escapeHtml(cleanCopy(category.name))}" loading="lazy" /><span class="category-tile__copy"><span>${escapeHtml(cleanCopy(category.description || "Коллекция"))}</span><strong>${escapeHtml(cleanCopy(category.name))}</strong></span></a>`;
+    return `<a class="category-tile" href="category.html?id=${category.id}"><img src="${escapeHtml(image)}" data-fallback="${fallbackFor(representative || {})}" alt="${escapeHtml(cleanCopy(category.name))}" loading="lazy" decoding="async" /><span class="category-tile__copy"><span>${escapeHtml(cleanCopy(category.description || "Коллекция"))}</span><strong>${escapeHtml(cleanCopy(category.name))}</strong></span></a>`;
   }).join("");
 }
 
@@ -579,8 +590,8 @@ function renderSocialGrid() {
     ? `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"></rect><circle cx="12" cy="12" r="4"></circle><circle cx="17.5" cy="6.5" r="1"></circle></svg>`
     : `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 3v11.2a4.8 4.8 0 1 1-4-4.73V13a2 2 0 1 0 1 1.73V3h3Zm0 0c.6 2.2 2 3.6 4.5 4V10A8.2 8.2 0 0 1 15 8.3"></path></svg>`;
   host.innerHTML = social.map((item, index) => `<a class="social-card social-card--${item.key} ${index ? "social-card--mirrored" : ""}" href="${escapeHtml(safeExternalUrl(item.url))}" target="_blank" rel="noopener noreferrer">
-    ${item.background ? `<img class="social-card__background" src="${escapeHtml(asset(item.background))}" alt="" loading="lazy" />` : ""}
-    ${item.foreground ? `<img class="social-card__foreground" src="${escapeHtml(asset(item.foreground))}" alt="" loading="lazy" />` : ""}
+    ${item.background ? `<img class="social-card__background" src="${escapeHtml(asset(item.background))}" alt="" loading="lazy" decoding="async" />` : ""}
+    ${item.foreground ? `<img class="social-card__foreground" src="${escapeHtml(asset(item.foreground))}" alt="" loading="lazy" decoding="async" />` : ""}
     <span class="social-card__copy"><span class="social-card__icon">${icon(item.key)}</span><span>${escapeHtml(siteCopy("site_social_kicker"))}</span><strong>${escapeHtml(item.label)}</strong><i>${escapeHtml(siteCopy("site_social_open_profile") || "Открыть профиль")} →</i></span>
   </a>`).join("");
 }
@@ -883,14 +894,13 @@ function initMotion() {
     smoothVelocity += (rawVelocity - smoothVelocity) * 0.18;
     root.style.setProperty("--page-progress", String(pageProgress));
     root.style.setProperty("--hero-progress", String(heroProgress));
-    root.style.setProperty("--scroll-direction", String(Math.sign(y - previousY)));
-    root.style.setProperty("--scroll-velocity", String(reducedMotion ? 0 : smoothVelocity));
     header.classList.toggle("scrolled", y > 24);
 
     let nearest = null;
     let nearestDistance = Infinity;
     scenes.forEach((scene) => {
       const rect = scene.getBoundingClientRect();
+      if (rect.bottom < -40 || rect.top > innerHeight + 40) return;
       const progress = Math.max(0, Math.min(1, (innerHeight - rect.top) / (innerHeight + rect.height)));
       scene.style.setProperty("--scene-progress", String(progress));
       const distance = Math.abs(rect.top + rect.height * 0.5 - innerHeight * 0.52);
